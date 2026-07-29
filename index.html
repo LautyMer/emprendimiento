@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>StockOS — Gestión Comercial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+          mono: ['JetBrains Mono', 'monospace'],
+        },
+        colors: {
+          base: {
+            950: '#0b0f17',
+            900: '#0f172a',
+            800: '#161f32',
+            700: '#1e293b',
+            600: '#334155',
+          },
+        },
+        boxShadow: {
+          glow: '0 0 0 1px rgba(56,189,248,0.15), 0 8px 24px -8px rgba(56,189,248,0.25)',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  * { -webkit-tap-highlight-color: transparent; }
+  html, body { background:#0b0f17; }
+  body { font-family:'Inter', system-ui, sans-serif; }
+  .font-mono-data { font-family:'JetBrains Mono', monospace; }
+
+  ::-webkit-scrollbar { width:8px; height:8px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:#334155; border-radius:8px; }
+  ::-webkit-scrollbar-thumb:hover { background:#475569; }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(56,189,248,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,189,248,0.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .view { display:none; animation: fadeUp .35s ease both; }
+  .view.active { display:block; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(6px);} to { opacity:1; transform:translateY(0);} }
+
+  .skeleton {
+    background: linear-gradient(90deg, #1e293b 25%, #263349 37%, #1e293b 63%);
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease infinite;
+  }
+  @keyframes shimmer { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+
+  .toast-enter { animation: toastIn .28s cubic-bezier(.16,1,.3,1) both; }
+  @keyframes toastIn { from { opacity:0; transform:translateX(16px) scale(.98);} to { opacity:1; transform:translateX(0) scale(1);} }
+
+  .pulse-dot { animation: pulseDot 1.6s ease-in-out infinite; }
+  @keyframes pulseDot { 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+
+  input[type="number"]::-webkit-inner-spin-button { opacity:1; }
+
+  .nav-item.active { color:#38bdf8; background:rgba(56,189,248,0.08); }
+  .nav-item.active .nav-dot { opacity:1; }
+
+  dialog::backdrop { background: rgba(2,6,15,0.72); backdrop-filter: blur(2px); }
+  dialog { border:none; padding:0; background:transparent; }
+
+  .chip-ok { color:#34d399; background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.25); }
+  .chip-low { color:#fb7185; background:rgba(251,113,133,0.12); border:1px solid rgba(251,113,133,0.3); }
+</style>
+</head>
+<body class="bg-base-950 text-slate-200 min-h-screen bg-grid">
+
+<!-- ============ TOASTS ============ -->
+<div id="toastContainer" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-[calc(100%-2rem)] max-w-sm"></div>
+
+<!-- ============ APP SHELL ============ -->
+<div class="flex min-h-screen">
+
+  <!-- Sidebar (desktop) -->
+  <aside class="hidden md:flex md:flex-col w-64 shrink-0 border-r border-base-700/60 bg-base-900/60 px-4 py-6 sticky top-0 h-screen">
+    <div class="flex items-center gap-2 px-2 mb-8">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-emerald-400 flex items-center justify-center font-black text-base-950 text-sm">S</div>
+      <span class="font-bold text-lg tracking-tight text-white">StockOS</span>
+    </div>
+    <nav class="flex flex-col gap-1" id="sidebarNav">
+      <button data-view="dashboard" class="nav-item active flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-base-800 transition">
+        <span class="w-1.5 h-1.5 rounded-full bg-sky-400 nav-dot opacity-0 transition"></span> Dashboard
+      </button>
+      <button data-view="operaciones" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-base-800 transition">
+        <span class="w-1.5 h-1.5 rounded-full bg-sky-400 nav-dot opacity-0 transition"></span> Operaciones
+      </button>
+      <button data-view="inventario" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-base-800 transition">
+        <span class="w-1.5 h-1.5 rounded-full bg-sky-400 nav-dot opacity-0 transition"></span> Inventario
+      </button>
+      <button data-view="ia" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-base-800 transition">
+        <span class="w-1.5 h-1.5 rounded-full bg-sky-400 nav-dot opacity-0 transition"></span> Asistente IA
+      </button>
+    </nav>
+    <div class="mt-auto px-2">
+      <button id="refreshBtn" class="w-full flex items-center justify-center gap-2 text-xs font-medium text-slate-400 hover:text-sky-400 border border-base-700 hover:border-sky-500/40 rounded-lg py-2 transition">
+        <svg id="refreshIcon" xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 22v-6h6M3.5 9a9 9 0 0 1 15-4L21 8M20.5 15a9 9 0 0 1-15 4L3 16"/></svg>
+        Sincronizar
+      </button>
+      <p class="text-[10px] text-slate-600 mt-2 text-center" id="syncStatus">Sin conexión configurada</p>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Topbar -->
+    <header class="sticky top-0 z-30 backdrop-blur bg-base-950/80 border-b border-base-700/60 px-4 md:px-8 py-4 flex items-center justify-between">
+      <div>
+        <h1 id="pageTitle" class="text-lg md:text-xl font-bold text-white tracking-tight">Dashboard</h1>
+        <p class="text-xs text-slate-500 mt-0.5" id="pageSubtitle">Resumen en tiempo real de tu negocio</p>
+      </div>
+      <button id="quickSaleBtn" class="flex items-center gap-1.5 bg-sky-500 hover:bg-sky-400 text-base-950 font-semibold text-sm px-3.5 py-2 rounded-lg transition shadow-glow">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        <span class="hidden sm:inline">Nuevo movimiento</span>
+      </button>
+    </header>
+
+    <main class="flex-1 px-4 md:px-8 py-6 pb-24 md:pb-8">
+
+      <!-- ============ VIEW: DASHBOARD ============ -->
+      <section id="view-dashboard" class="view active">
+        <div id="alertBanner" class="hidden mb-5 flex items-center gap-2 text-sm bg-rose-500/10 border border-rose-500/25 text-rose-300 rounded-xl px-4 py-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
+          <span id="alertText"></span>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
+          <div class="kpi-card bg-base-900 border border-base-700/60 rounded-2xl p-4">
+            <p class="text-xs text-slate-500 font-medium">Ventas del período</p>
+            <p class="font-mono-data text-2xl font-bold text-white mt-1" id="kpiVentas">$0</p>
+            <p class="text-[11px] text-sky-400 mt-1">Semana en curso</p>
+          </div>
+          <div class="kpi-card bg-base-900 border border-base-700/60 rounded-2xl p-4">
+            <p class="text-xs text-slate-500 font-medium">Ganancia neta</p>
+            <p class="font-mono-data text-2xl font-bold text-emerald-400 mt-1" id="kpiGanancia">$0</p>
+            <p class="text-[11px] text-slate-500 mt-1" id="kpiGananciaPct">Bruta: $0</p>
+          </div>
+          <div class="kpi-card bg-base-900 border border-base-700/60 rounded-2xl p-4">
+            <p class="text-xs text-slate-500 font-medium">Unidades vendidas</p>
+            <p class="font-mono-data text-2xl font-bold text-white mt-1" id="kpiUnidades">0</p>
+            <p class="text-[11px] text-slate-500 mt-1">Esta semana</p>
+          </div>
+          <div class="kpi-card bg-base-900 border border-base-700/60 rounded-2xl p-4">
+            <p class="text-xs text-slate-500 font-medium">Alertas críticas</p>
+            <p class="font-mono-data text-2xl font-bold mt-1" id="kpiAlertas">0</p>
+            <p class="text-[11px] mt-1" id="kpiAlertasLabel">Stock OK</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div class="lg:col-span-3 bg-base-900 border border-base-700/60 rounded-2xl p-4 md:p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-semibold text-slate-200">Ventas vs. Costos por semana</h3>
+              <span class="text-[10px] text-slate-500 font-mono-data">últimas 6 semanas</span>
+            </div>
+            <div class="h-64"><canvas id="chartVentasCostos"></canvas></div>
+          </div>
+          <div class="lg:col-span-2 bg-base-900 border border-base-700/60 rounded-2xl p-4 md:p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-semibold text-slate-200">Top 5 productos</h3>
+              <span class="text-[10px] text-slate-500 font-mono-data">por unidades</span>
+            </div>
+            <div class="h-64"><canvas id="chartTopProductos"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: OPERACIONES ============ -->
+      <section id="view-operaciones" class="view">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+          <!-- Registrar movimiento -->
+          <div class="bg-base-900 border border-base-700/60 rounded-2xl p-5">
+            <h3 class="text-sm font-semibold text-slate-200 mb-4">Registrar movimiento</h3>
+            <form id="movimientoForm" class="space-y-3.5">
+              <div>
+                <label class="text-xs text-slate-500 font-medium">Producto</label>
+                <input list="productoOptions" id="movProducto" required autocomplete="off"
+                  class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500/60"
+                  placeholder="Buscar por ID o nombre...">
+                <datalist id="productoOptions"></datalist>
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 font-medium">Tipo de operación</label>
+                <div class="grid grid-cols-3 gap-2 mt-1">
+                  <button type="button" data-tipo="Venta" class="tipo-btn text-sm font-medium py-2 rounded-lg border border-base-700 bg-base-800 hover:border-sky-500/50 transition">Venta</button>
+                  <button type="button" data-tipo="Reposición" class="tipo-btn text-sm font-medium py-2 rounded-lg border border-base-700 bg-base-800 hover:border-emerald-500/50 transition">Reposición</button>
+                  <button type="button" data-tipo="Ajuste por rotura" class="tipo-btn text-sm font-medium py-2 rounded-lg border border-base-700 bg-base-800 hover:border-rose-500/50 transition">Ajuste</button>
+                </div>
+                <input type="hidden" id="movTipo" required>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-xs text-slate-500 font-medium">Cantidad</label>
+                  <input type="number" id="movCantidad" min="1" step="1" required
+                    class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-sky-500/40">
+                </div>
+                <div>
+                  <label class="text-xs text-slate-500 font-medium">Precio unitario</label>
+                  <input type="number" id="movPrecio" min="0" step="0.01" required
+                    class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-sky-500/40">
+                </div>
+              </div>
+              <div class="flex items-center justify-between bg-base-800/60 border border-base-700/60 rounded-lg px-3.5 py-3">
+                <span class="text-xs text-slate-500 font-medium">Total</span>
+                <span class="font-mono-data text-lg font-bold text-white" id="movTotalPreview">$0.00</span>
+              </div>
+              <button type="submit" class="w-full bg-sky-500 hover:bg-sky-400 text-base-950 font-semibold text-sm py-3 rounded-lg transition">Guardar movimiento</button>
+            </form>
+          </div>
+
+          <!-- Alta / edición de producto -->
+          <div class="bg-base-900 border border-base-700/60 rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-semibold text-slate-200">Alta de producto</h3>
+              <span id="productoFormMode" class="text-[10px] font-mono-data text-slate-500">nuevo</span>
+            </div>
+            <form id="productoForm" class="space-y-3.5">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-xs text-slate-500 font-medium">ID Producto</label>
+                  <input type="text" id="prodId" required class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                </div>
+                <div>
+                  <label class="text-xs text-slate-500 font-medium">Nombre</label>
+                  <input type="text" id="prodNombre" required class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-xs text-slate-500 font-medium">Stock inicial</label>
+                  <input type="number" id="prodStock" min="0" step="1" required class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                </div>
+                <div>
+                  <label class="text-xs text-slate-500 font-medium">Stock mínimo</label>
+                  <input type="number" id="prodStockMin" min="0" step="1" required class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-xs text-slate-500 font-medium">Costo unitario</label>
+                  <input type="number" id="prodCosto" min="0" step="0.01" required class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                </div>
+                <div>
+                  <label class="text-xs text-slate-500 font-medium">Precio de venta</label>
+                  <input type="number" id="prodPrecio" min="0" step="0.01" required class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button type="submit" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-base-950 font-semibold text-sm py-3 rounded-lg transition">Guardar producto</button>
+                <button type="button" id="cancelEditBtn" class="hidden px-4 text-sm font-medium text-slate-400 hover:text-slate-200 border border-base-700 rounded-lg transition">Cancelar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: INVENTARIO ============ -->
+      <section id="view-inventario" class="view">
+        <div class="flex flex-col sm:flex-row gap-3 mb-4">
+          <div class="relative flex-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input id="invSearch" type="text" placeholder="Buscar por nombre o ID..."
+              class="w-full bg-base-900 border border-base-700 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/40">
+          </div>
+          <div class="flex gap-2" id="invFilters">
+            <button data-filter="todos" class="filter-btn active text-xs font-semibold px-3.5 py-2.5 rounded-lg border border-sky-500/50 bg-sky-500/10 text-sky-400 transition">Todos</button>
+            <button data-filter="ok" class="filter-btn text-xs font-semibold px-3.5 py-2.5 rounded-lg border border-base-700 bg-base-900 text-slate-400 hover:text-slate-200 transition">En stock</button>
+            <button data-filter="bajo" class="filter-btn text-xs font-semibold px-3.5 py-2.5 rounded-lg border border-base-700 bg-base-900 text-slate-400 hover:text-slate-200 transition">¡Reponer!</button>
+          </div>
+        </div>
+
+        <div class="bg-base-900 border border-base-700/60 rounded-2xl overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs text-slate-500 border-b border-base-700/60">
+                  <th class="px-4 py-3 font-medium">Producto</th>
+                  <th class="px-4 py-3 font-medium">Stock</th>
+                  <th class="px-4 py-3 font-medium hidden sm:table-cell">Costo</th>
+                  <th class="px-4 py-3 font-medium">Precio</th>
+                  <th class="px-4 py-3 font-medium hidden md:table-cell">Estado</th>
+                  <th class="px-4 py-3 font-medium text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="invTableBody"></tbody>
+            </table>
+          </div>
+          <p id="invEmptyState" class="hidden text-center text-sm text-slate-500 py-10">No se encontraron productos.</p>
+        </div>
+      </section>
+
+      <!-- ============ VIEW: IA ============ -->
+      <section id="view-ia" class="view">
+        <div class="bg-base-900 border border-base-700/60 rounded-2xl p-5 md:p-6 max-w-3xl">
+          <div class="flex items-start justify-between gap-4 mb-5 flex-wrap">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-emerald-400 flex items-center justify-center shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-base-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              </div>
+              <div>
+                <h3 class="text-sm font-semibold text-white">Asistente de negocio</h3>
+                <p class="text-xs text-slate-500">Analiza inventario y ventas en tiempo real</p>
+              </div>
+            </div>
+            <button id="analyzeBtn" class="flex items-center gap-2 bg-sky-500 hover:bg-sky-400 text-base-950 font-semibold text-sm px-4 py-2.5 rounded-lg transition shadow-glow">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m12 3-1.9 4.9L5 9.8l4.1 3.2L7.8 18 12 15.2l4.2 2.8-1.3-4.9L19 9.8l-5.1-1.9L12 3Z"/></svg>
+              Analizar mi negocio con IA
+            </button>
+          </div>
+          <div id="aiFeed" class="space-y-3 min-h-[8rem]">
+            <div class="flex items-start gap-3">
+              <div class="w-7 h-7 rounded-full bg-base-800 border border-base-700 flex items-center justify-center shrink-0 mt-0.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+              </div>
+              <p class="text-sm text-slate-400 bg-base-800/60 border border-base-700/60 rounded-xl rounded-tl-sm px-4 py-3 leading-relaxed">
+                Presioná <span class="text-slate-200 font-medium">"Analizar mi negocio con IA"</span> y voy a leer tu inventario y tus ventas para darte sugerencias accionables sobre márgenes, stock crítico y tendencias semanales.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- Bottom nav (mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-base-900/95 backdrop-blur border-t border-base-700/60 flex items-center justify-around py-2 px-2">
+  <button data-view="dashboard" class="nav-item-mobile active flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-slate-500">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+    <span class="text-[10px] font-medium">Inicio</span>
+  </button>
+  <button data-view="operaciones" class="nav-item-mobile flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-slate-500">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+    <span class="text-[10px] font-medium">Operar</span>
+  </button>
+  <button data-view="inventario" class="nav-item-mobile flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-slate-500">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8H3M21 8v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8M10 12h4M3 3h18v5H3z"/></svg>
+    <span class="text-[10px] font-medium">Stock</span>
+  </button>
+  <button data-view="ia" class="nav-item-mobile flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-slate-500">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+    <span class="text-[10px] font-medium">IA</span>
+  </button>
+</nav>
+
+<!-- Modal: editar producto -->
+<dialog id="editModal" class="w-full max-w-md m-auto rounded-2xl">
+  <div class="bg-base-900 border border-base-700 rounded-2xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-sm font-semibold text-white">Editar producto</h3>
+      <button id="closeModalBtn" class="text-slate-500 hover:text-slate-200">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p class="text-xs text-slate-500 mb-4">Los cambios se reflejan en Google Sheets al guardar.</p>
+    <button id="goToEditFormBtn" class="w-full bg-sky-500 hover:bg-sky-400 text-base-950 font-semibold text-sm py-3 rounded-lg transition">Ir al formulario de edición</button>
+  </div>
+</dialog>
+
+<script>
+/* ============================================================
+ *  StockOS — Lógica de la aplicación
+ * ============================================================ */
+
+// ---- Configuración ----
+const API_URL = "TU_GOOGLE_APPS_SCRIPT_URL_AQUI"; // Reemplazar por la URL /exec del deployment
+const CACHE_KEY = "stockos_cache_v1";
+const CURRENCY = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+const CURRENCY_DEC = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 });
+
+// ---- Estado global ----
+const state = {
+  inventario: [],
+  movimientos: [],
+  resumenSemanal: [],
+  editingProductId: null,
+  loading: false,
+};
+
+let chartVentasCostos = null;
+let chartTopProductos = null;
+
+// ============================================================
+// Utilidades: Toast
+// ============================================================
+function toast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const colors = {
+    success: { border: 'border-emerald-500/40', icon: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    error:   { border: 'border-rose-500/40',    icon: 'text-rose-400',    bg: 'bg-rose-500/10' },
+    info:    { border: 'border-sky-500/40',     icon: 'text-sky-400',     bg: 'bg-sky-500/10' },
+  };
+  const c = colors[type] || colors.info;
+  const el = document.createElement('div');
+  el.className = `toast-enter flex items-start gap-2.5 bg-base-900 border ${c.border} rounded-xl px-4 py-3 shadow-lg`;
+  el.innerHTML = `
+    <span class="w-1.5 h-1.5 rounded-full ${c.icon.replace('text-', 'bg-')} mt-1.5 shrink-0"></span>
+    <p class="text-sm text-slate-200 leading-snug">${message}</p>
+  `;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.style.transition = 'opacity .25s, transform .25s';
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(16px)';
+    setTimeout(() => el.remove(), 260);
+  }, 3800);
+}
+
+// ============================================================
+// Utilidades: API
+// ============================================================
+async function apiGet(action) {
+  const res = await fetch(`${API_URL}?action=${encodeURIComponent(action)}`);
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'Error desconocido');
+  return json.data;
+}
+
+async function apiPost(action, payload) {
+  // Content-Type text/plain evita el preflight OPTIONS que Apps Script no maneja.
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, payload }),
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'Error desconocido');
+  return json.data;
+}
+
+// ============================================================
+// Cache local
+// ============================================================
+function saveCache() {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      inventario: state.inventario,
+      movimientos: state.movimientos,
+      resumenSemanal: state.resumenSemanal,
+      ts: Date.now(),
+    }));
+  } catch (e) { /* almacenamiento no disponible, se ignora */ }
+}
+
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    state.inventario = data.inventario || [];
+    state.movimientos = data.movimientos || [];
+    state.resumenSemanal = data.resumenSemanal || [];
+    return true;
+  } catch (e) { return false; }
+}
+
+// ============================================================
+// Carga de datos
+// ============================================================
+async function loadData({ silent = false } = {}) {
+  const configured = API_URL && !API_URL.includes('TU_GOOGLE_APPS_SCRIPT_URL_AQUI');
+  const syncEl = document.getElementById('syncStatus');
+
+  if (!configured) {
+    syncEl.textContent = 'Configurá API_URL para sincronizar';
+    if (!silent) toast('Configurá la variable API_URL con tu URL de Google Apps Script.', 'info');
+    const hadCache = loadCache();
+    if (hadCache) renderAll();
+    return;
+  }
+
+  setLoading(true);
+  syncEl.textContent = 'Sincronizando...';
+  try {
+    const data = await apiGet('getAll');
+    state.inventario = data.inventario || [];
+    state.movimientos = data.movimientos || [];
+    state.resumenSemanal = data.resumenSemanal || [];
+    saveCache();
+    syncEl.textContent = 'Sincronizado ✓';
+    if (!silent) toast('Datos sincronizados con Google Sheets.', 'success');
+  } catch (err) {
+    syncEl.textContent = 'Error de sincronización';
+    toast(`No se pudo conectar al backend: ${err.message}`, 'error');
+    loadCache();
+  } finally {
+    setLoading(false);
+    renderAll();
+  }
+}
+
+function setLoading(isLoading) {
+  state.loading = isLoading;
+  const icon = document.getElementById('refreshIcon');
+  icon.classList.toggle('animate-spin', isLoading);
+  if (isLoading) renderSkeletons();
+}
+
+function renderSkeletons() {
+  document.getElementById('kpiVentas').innerHTML = '<span class="skeleton inline-block w-20 h-6 rounded"></span>';
+  document.getElementById('kpiGanancia').innerHTML = '<span class="skeleton inline-block w-20 h-6 rounded"></span>';
+  document.getElementById('kpiUnidades').innerHTML = '<span class="skeleton inline-block w-14 h-6 rounded"></span>';
+  document.getElementById('kpiAlertas').innerHTML = '<span class="skeleton inline-block w-10 h-6 rounded"></span>';
+  document.getElementById('invTableBody').innerHTML = Array.from({ length: 4 }).map(() => `
+    <tr class="border-b border-base-700/40">
+      <td class="px-4 py-3" colspan="6"><div class="skeleton h-5 rounded w-full"></div></td>
+    </tr>`).join('');
+}
+
+// ============================================================
+// Render maestro
+// ============================================================
+function renderAll() {
+  renderKpis();
+  renderCharts();
+  renderInventoryTable();
+  refreshProductDatalist();
+}
+
+// ---- KPIs ----
+function computeWeeklyKpis() {
+  const now = new Date();
+  const dow = now.getDay() === 0 ? 7 : now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (dow - 1));
+  monday.setHours(0, 0, 0, 0);
+
+  const costoPorId = {};
+  state.inventario.forEach(p => (costoPorId[p.ID_Producto] = Number(p.Costo_Unitario || 0)));
+
+  let ventas = 0, costos = 0, unidades = 0;
+  state.movimientos.forEach(mv => {
+    const fecha = new Date(mv.Fecha);
+    if (mv.Tipo === 'Venta' && fecha >= monday) {
+      ventas += Number(mv.Total || 0);
+      unidades += Number(mv.Cantidad || 0);
+      costos += Number(mv.Cantidad || 0) * (costoPorId[mv.ID_Producto] || 0);
+    }
+  });
+  const gananciaBruta = ventas - costos;
+  // Ganancia neta simplificada = bruta (sin gastos operativos adicionales cargados)
+  return { ventas, costos, gananciaBruta, gananciaNeta: gananciaBruta, unidades };
+}
+
+function renderKpis() {
+  const { ventas, gananciaBruta, gananciaNeta, unidades } = computeWeeklyKpis();
+  const bajoStock = state.inventario.filter(p => Number(p.Stock_Actual) <= Number(p.Stock_Minimo));
+
+  document.getElementById('kpiVentas').textContent = CURRENCY.format(ventas || 0);
+  document.getElementById('kpiGanancia').textContent = CURRENCY.format(gananciaNeta || 0);
+  document.getElementById('kpiGananciaPct').textContent = `Bruta: ${CURRENCY.format(gananciaBruta || 0)}`;
+  document.getElementById('kpiUnidades').textContent = (unidades || 0).toLocaleString('es-AR');
+  document.getElementById('kpiAlertas').textContent = bajoStock.length;
+
+  const alertasEl = document.getElementById('kpiAlertas');
+  const alertasLabel = document.getElementById('kpiAlertasLabel');
+  if (bajoStock.length > 0) {
+    alertasEl.className = 'font-mono-data text-2xl font-bold mt-1 text-rose-400';
+    alertasLabel.textContent = 'Requieren reposición';
+    alertasLabel.className = 'text-[11px] mt-1 text-rose-400';
+  } else {
+    alertasEl.className = 'font-mono-data text-2xl font-bold mt-1 text-emerald-400';
+    alertasLabel.textContent = 'Stock OK';
+    alertasLabel.className = 'text-[11px] mt-1 text-emerald-400';
+  }
+
+  const banner = document.getElementById('alertBanner');
+  if (bajoStock.length > 0) {
+    banner.classList.remove('hidden');
+    const nombres = bajoStock.slice(0, 3).map(p => p.Nombre).join(', ');
+    document.getElementById('alertText').textContent =
+      `${bajoStock.length} producto(s) necesitan reposición: ${nombres}${bajoStock.length > 3 ? '…' : ''}`;
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+// ---- Gráficos ----
+function renderCharts() {
+  renderChartVentasCostos();
+  renderChartTopProductos();
+}
+
+function getLastNWeeksLabelsFromResumen(n = 6) {
+  const sorted = [...state.resumenSemanal].sort((a, b) => new Date(a.Semana) - new Date(b.Semana));
+  return sorted.slice(-n);
+}
+
+function renderChartVentasCostos() {
+  const ctx = document.getElementById('chartVentasCostos');
+  const rows = getLastNWeeksLabelsFromResumen(6);
+  const labels = rows.map(r => r.Semana);
+  const ventas = rows.map(r => Number(r.Ventas_Totales || 0));
+  const costos = rows.map(r => Number(r.Costos_Totales || 0));
+
+  if (chartVentasCostos) chartVentasCostos.destroy();
+  chartVentasCostos = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels.length ? labels : ['Sin datos'],
+      datasets: [
+        { label: 'Ventas', data: ventas.length ? ventas : [0], backgroundColor: '#38bdf8', borderRadius: 6, maxBarThickness: 28 },
+        { label: 'Costos', data: costos.length ? costos : [0], backgroundColor: '#334155', borderRadius: 6, maxBarThickness: 28 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#94a3b8', boxWidth: 10, font: { size: 11 } } },
+        tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${CURRENCY.format(c.parsed.y)}` } },
+      },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(148,163,184,0.08)' } },
+      },
+    },
+  });
+}
+
+function renderChartTopProductos() {
+  const ctx = document.getElementById('chartTopProductos');
+  const unidadesPorProducto = {};
+  state.movimientos.forEach(mv => {
+    if (mv.Tipo === 'Venta') {
+      unidadesPorProducto[mv.Nombre] = (unidadesPorProducto[mv.Nombre] || 0) + Number(mv.Cantidad || 0);
+    }
+  });
+  const top5 = Object.entries(unidadesPorProducto).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  if (chartTopProductos) chartTopProductos.destroy();
+  chartTopProductos = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: top5.length ? top5.map(t => t[0]) : ['Sin ventas registradas'],
+      datasets: [{
+        data: top5.length ? top5.map(t => t[1]) : [1],
+        backgroundColor: ['#38bdf8', '#34d399', '#a78bfa', '#fbbf24', '#fb7185'],
+        borderColor: '#0f172a', borderWidth: 3,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 }, padding: 12 } } },
+    },
+  });
+}
+
+// ---- Datalist de productos (para el buscador de movimientos) ----
+function refreshProductDatalist() {
+  const list = document.getElementById('productoOptions');
+  list.innerHTML = state.inventario.map(p =>
+    `<option value="${p.ID_Producto} — ${p.Nombre}"></option>`
+  ).join('');
+}
+
+function findProductoFromInput(value) {
+  if (!value) return null;
+  const id = value.split(' — ')[0].trim();
+  return state.inventario.find(p => String(p.ID_Producto) === id) ||
+         state.inventario.find(p => p.Nombre.toLowerCase() === value.toLowerCase());
+}
+
+// ---- Tabla de inventario ----
+let currentFilter = 'todos';
+let currentSearch = '';
+
+function renderInventoryTable() {
+  const tbody = document.getElementById('invTableBody');
+  const emptyState = document.getElementById('invEmptyState');
+
+  let rows = [...state.inventario];
+  if (currentFilter === 'ok') rows = rows.filter(p => Number(p.Stock_Actual) > Number(p.Stock_Minimo));
+  if (currentFilter === 'bajo') rows = rows.filter(p => Number(p.Stock_Actual) <= Number(p.Stock_Minimo));
+  if (currentSearch) {
+    const q = currentSearch.toLowerCase();
+    rows = rows.filter(p => p.Nombre.toLowerCase().includes(q) || String(p.ID_Producto).toLowerCase().includes(q));
+  }
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '';
+    emptyState.classList.remove('hidden');
+    return;
+  }
+  emptyState.classList.add('hidden');
+
+  tbody.innerHTML = rows.map(p => {
+    const bajo = Number(p.Stock_Actual) <= Number(p.Stock_Minimo);
+    return `
+    <tr class="border-b border-base-700/40 hover:bg-base-800/40 transition">
+      <td class="px-4 py-3">
+        <p class="font-medium text-slate-200">${p.Nombre}</p>
+        <p class="text-[11px] text-slate-500 font-mono-data">${p.ID_Producto}</p>
+      </td>
+      <td class="px-4 py-3 font-mono-data ${bajo ? 'text-rose-400 font-semibold' : 'text-slate-300'}">${p.Stock_Actual}</td>
+      <td class="px-4 py-3 font-mono-data text-slate-400 hidden sm:table-cell">${CURRENCY_DEC.format(p.Costo_Unitario || 0)}</td>
+      <td class="px-4 py-3 font-mono-data text-slate-200">${CURRENCY_DEC.format(p.Precio_Venta || 0)}</td>
+      <td class="px-4 py-3 hidden md:table-cell">
+        <span class="text-[10px] font-semibold px-2 py-1 rounded-full ${bajo ? 'chip-low' : 'chip-ok'} ${bajo ? 'pulse-dot' : ''}">${bajo ? '¡REPONER!' : 'EN STOCK'}</span>
+      </td>
+      <td class="px-4 py-3 text-right">
+        <button data-edit-id="${p.ID_Producto}" class="text-slate-500 hover:text-sky-400 p-1.5 rounded-lg hover:bg-base-800 transition" title="Editar">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+        </button>
+        <button data-delete-id="${p.ID_Producto}" class="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-base-800 transition" title="Eliminar">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16Z"/></svg>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('[data-edit-id]').forEach(btn =>
+    btn.addEventListener('click', () => startEditProduct(btn.dataset.editId)));
+  tbody.querySelectorAll('[data-delete-id]').forEach(btn =>
+    btn.addEventListener('click', () => deleteProduct(btn.dataset.deleteId)));
+}
+
+// ============================================================
+// Navegación entre vistas
+// ============================================================
+const viewTitles = {
+  dashboard: ['Dashboard', 'Resumen en tiempo real de tu negocio'],
+  operaciones: ['Operaciones', 'Registrá ventas, reposiciones y nuevos productos'],
+  inventario: ['Inventario', 'Stock actualizado de todos tus productos'],
+  ia: ['Asistente IA', 'Análisis automático de tu negocio'],
+};
+
+function switchView(viewName) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(`view-${viewName}`).classList.add('active');
+
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.view === viewName));
+  document.querySelectorAll('.nav-item-mobile').forEach(b => {
+    const active = b.dataset.view === viewName;
+    b.classList.toggle('active', active);
+    b.classList.toggle('text-sky-400', active);
+    b.classList.toggle('text-slate-500', !active);
+  });
+
+  const [title, subtitle] = viewTitles[viewName];
+  document.getElementById('pageTitle').textContent = title;
+  document.getElementById('pageSubtitle').textContent = subtitle;
+}
+
+document.querySelectorAll('[data-view]').forEach(btn => {
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
+});
+document.getElementById('quickSaleBtn').addEventListener('click', () => switchView('operaciones'));
+
+// ============================================================
+// Formulario: Movimiento
+// ============================================================
+document.querySelectorAll('.tipo-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tipo-btn').forEach(b => b.classList.remove('ring-2', 'ring-sky-500/50', 'border-sky-500/60'));
+    btn.classList.add('ring-2', 'ring-sky-500/50', 'border-sky-500/60');
+    document.getElementById('movTipo').value = btn.dataset.tipo;
+  });
+});
+
+function updateMovTotalPreview() {
+  const cant = Number(document.getElementById('movCantidad').value || 0);
+  const precio = Number(document.getElementById('movPrecio').value || 0);
+  document.getElementById('movTotalPreview').textContent = CURRENCY_DEC.format(cant * precio);
+}
+document.getElementById('movCantidad').addEventListener('input', updateMovTotalPreview);
+document.getElementById('movPrecio').addEventListener('input', updateMovTotalPreview);
+
+document.getElementById('movProducto').addEventListener('change', (e) => {
+  const p = findProductoFromInput(e.target.value);
+  if (p && !document.getElementById('movPrecio').value) {
+    document.getElementById('movPrecio').value = p.Precio_Venta;
+    updateMovTotalPreview();
+  }
+});
+
+document.getElementById('movimientoForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const producto = findProductoFromInput(document.getElementById('movProducto').value);
+  const tipo = document.getElementById('movTipo').value;
+
+  if (!producto) return toast('Seleccioná un producto válido de la lista.', 'error');
+  if (!tipo) return toast('Elegí un tipo de operación.', 'error');
+
+  const payload = {
+    ID_Producto: producto.ID_Producto,
+    Nombre: producto.Nombre,
+    Tipo: tipo,
+    Cantidad: Number(document.getElementById('movCantidad').value),
+    Precio_Unitario: Number(document.getElementById('movPrecio').value),
+  };
+
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Guardando...';
+  try {
+    await apiPost('registrarMovimiento', payload);
+    toast(`Movimiento registrado: ${tipo} de ${payload.Cantidad}× ${producto.Nombre}.`, 'success');
+    e.target.reset();
+    document.getElementById('movTotalPreview').textContent = '$0.00';
+    document.querySelectorAll('.tipo-btn').forEach(b => b.classList.remove('ring-2', 'ring-sky-500/50', 'border-sky-500/60'));
+    await loadData({ silent: true });
+  } catch (err) {
+    toast(`Error al registrar el movimiento: ${err.message}`, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Guardar movimiento';
+  }
+});
+
+// ============================================================
+// Formulario: Producto (alta / edición)
+// ============================================================
+function startEditProduct(id) {
+  const p = state.inventario.find(x => String(x.ID_Producto) === String(id));
+  if (!p) return;
+  state.editingProductId = id;
+
+  document.getElementById('prodId').value = p.ID_Producto;
+  document.getElementById('prodId').disabled = true;
+  document.getElementById('prodNombre').value = p.Nombre;
+  document.getElementById('prodStock').value = p.Stock_Actual;
+  document.getElementById('prodStockMin').value = p.Stock_Minimo;
+  document.getElementById('prodCosto').value = p.Costo_Unitario;
+  document.getElementById('prodPrecio').value = p.Precio_Venta;
+
+  document.getElementById('productoFormMode').textContent = `editando ${p.ID_Producto}`;
+  document.getElementById('cancelEditBtn').classList.remove('hidden');
+  switchView('operaciones');
+  document.getElementById('prodNombre').focus();
+}
+
+document.getElementById('cancelEditBtn').addEventListener('click', resetProductForm);
+
+function resetProductForm() {
+  state.editingProductId = null;
+  document.getElementById('productoForm').reset();
+  document.getElementById('prodId').disabled = false;
+  document.getElementById('productoFormMode').textContent = 'nuevo';
+  document.getElementById('cancelEditBtn').classList.add('hidden');
+}
+
+document.getElementById('productoForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    ID_Producto: document.getElementById('prodId').value.trim(),
+    Nombre: document.getElementById('prodNombre').value.trim(),
+    Stock_Actual: Number(document.getElementById('prodStock').value),
+    Stock_Minimo: Number(document.getElementById('prodStockMin').value),
+    Costo_Unitario: Number(document.getElementById('prodCosto').value),
+    Precio_Venta: Number(document.getElementById('prodPrecio').value),
+  };
+
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Guardando...';
+  try {
+    if (state.editingProductId) {
+      await apiPost('editarProducto', payload);
+      toast(`Producto "${payload.Nombre}" actualizado.`, 'success');
+    } else {
+      await apiPost('crearProducto', payload);
+      toast(`Producto "${payload.Nombre}" creado.`, 'success');
+    }
+    resetProductForm();
+    await loadData({ silent: true });
+  } catch (err) {
+    toast(`Error al guardar el producto: ${err.message}`, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Guardar producto';
+  }
+});
+
+async function deleteProduct(id) {
+  const p = state.inventario.find(x => String(x.ID_Producto) === String(id));
+  if (!p) return;
+  if (!confirm(`¿Eliminar "${p.Nombre}" del inventario? Esta acción no se puede deshacer.`)) return;
+  try {
+    await apiPost('eliminarProducto', { ID_Producto: id });
+    toast(`Producto "${p.Nombre}" eliminado.`, 'success');
+    await loadData({ silent: true });
+  } catch (err) {
+    toast(`Error al eliminar: ${err.message}`, 'error');
+  }
+}
+
+// ============================================================
+// Inventario: búsqueda y filtros
+// ============================================================
+document.getElementById('invSearch').addEventListener('input', (e) => {
+  currentSearch = e.target.value;
+  renderInventoryTable();
+});
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentFilter = btn.dataset.filter;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.remove('active', 'border-sky-500/50', 'bg-sky-500/10', 'text-sky-400');
+      b.classList.add('border-base-700', 'bg-base-900', 'text-slate-400');
+    });
+    btn.classList.add('active', 'border-sky-500/50', 'bg-sky-500/10', 'text-sky-400');
+    btn.classList.remove('border-base-700', 'bg-base-900', 'text-slate-400');
+    renderInventoryTable();
+  });
+});
+
+// ============================================================
+// Asistente IA — análisis heurístico local sobre los datos reales
+// ============================================================
+function bubbleHtml(text) {
+  return `
+    <div class="flex items-start gap-3">
+      <div class="w-7 h-7 rounded-full bg-gradient-to-br from-sky-400 to-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-base-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m12 3-1.9 4.9L5 9.8l4.1 3.2L7.8 18 12 15.2l4.2 2.8-1.3-4.9L19 9.8l-5.1-1.9L12 3Z"/></svg>
+      </div>
+      <p class="text-sm text-slate-200 bg-base-800/60 border border-base-700/60 rounded-xl rounded-tl-sm px-4 py-3 leading-relaxed">${text}</p>
+    </div>`;
+}
+
+function analyzeBusiness() {
+  if (state.inventario.length === 0) {
+    toast('No hay datos de inventario para analizar todavía.', 'info');
+    return;
+  }
+  const feed = document.getElementById('aiFeed');
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  btn.innerHTML = `<svg class="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Analizando...`;
+
+  setTimeout(() => {
+    const insights = [];
+
+    // 1) Producto con mayor margen
+    const conMargen = state.inventario.map(p => ({
+      ...p,
+      margen: Number(p.Precio_Venta || 0) - Number(p.Costo_Unitario || 0),
+      margenPct: Number(p.Costo_Unitario) > 0 ? ((Number(p.Precio_Venta) - Number(p.Costo_Unitario)) / Number(p.Costo_Unitario)) * 100 : 0,
+    })).sort((a, b) => b.margenPct - a.margenPct);
+    if (conMargen.length) {
+      const top = conMargen[0];
+      insights.push(`Tu producto con mayor margen es <strong class="text-emerald-400">${top.Nombre}</strong>, con ${top.margenPct.toFixed(0)}% de rentabilidad sobre el costo. Vale la pena promocionarlo más.`);
+    }
+
+    // 2) Producto crítico que representa buena parte de los ingresos
+    const ventasPorProducto = {};
+    let ventasTotales = 0;
+    state.movimientos.forEach(mv => {
+      if (mv.Tipo === 'Venta') {
+        ventasPorProducto[mv.ID_Producto] = (ventasPorProducto[mv.ID_Producto] || 0) + Number(mv.Total || 0);
+        ventasTotales += Number(mv.Total || 0);
+      }
+    });
+    const bajoStock = state.inventario.filter(p => Number(p.Stock_Actual) <= Number(p.Stock_Minimo));
+    if (bajoStock.length && ventasTotales > 0) {
+      const critico = bajoStock
+        .map(p => ({ ...p, participacion: ((ventasPorProducto[p.ID_Producto] || 0) / ventasTotales) * 100 }))
+        .sort((a, b) => b.participacion - a.participacion)[0];
+      if (critico && critico.participacion > 0) {
+        insights.push(`Atención: <strong class="text-rose-400">${critico.Nombre}</strong> está por agotarse y representa el ${critico.participacion.toFixed(0)}% de tus ingresos históricos. Priorizá su reposición.`);
+      } else {
+        insights.push(`Tenés <strong class="text-rose-400">${bajoStock.length}</strong> producto(s) por debajo del stock mínimo. Revisá el inventario para evitar quiebres de stock.`);
+      }
+    } else if (bajoStock.length) {
+      insights.push(`Tenés <strong class="text-rose-400">${bajoStock.length}</strong> producto(s) por debajo del stock mínimo.`);
+    }
+
+    // 3) Rendimiento semanal (semana actual vs anterior)
+    const sorted = [...state.resumenSemanal].sort((a, b) => new Date(a.Semana) - new Date(b.Semana));
+    if (sorted.length >= 2) {
+      const actual = sorted[sorted.length - 1];
+      const anterior = sorted[sorted.length - 2];
+      const gananciaActual = Number(actual.Ganancia_Neta || 0);
+      const gananciaAnterior = Number(anterior.Ganancia_Neta || 0);
+      if (gananciaAnterior !== 0) {
+        const variacion = ((gananciaActual - gananciaAnterior) / Math.abs(gananciaAnterior)) * 100;
+        const signo = variacion >= 0 ? 'subió' : 'bajó';
+        const color = variacion >= 0 ? 'text-emerald-400' : 'text-rose-400';
+        insights.push(`Rendimiento semanal: tu ganancia neta <strong class="${color}">${signo} un ${Math.abs(variacion).toFixed(0)}%</strong> respecto a la semana pasada.`);
+      }
+    } else {
+      insights.push(`Todavía no hay suficiente historial semanal para comparar tendencias. Seguí registrando movimientos para desbloquear este análisis.`);
+    }
+
+    // 4) Producto más vendido
+    const unidadesPorProducto = {};
+    state.movimientos.forEach(mv => {
+      if (mv.Tipo === 'Venta') unidadesPorProducto[mv.Nombre] = (unidadesPorProducto[mv.Nombre] || 0) + Number(mv.Cantidad || 0);
+    });
+    const masVendido = Object.entries(unidadesPorProducto).sort((a, b) => b[1] - a[1])[0];
+    if (masVendido) {
+      insights.push(`Tu producto más vendido es <strong class="text-sky-400">${masVendido[0]}</strong> con ${masVendido[1]} unidades. Asegurate de mantener buen stock disponible.`);
+    }
+
+    feed.innerHTML = '';
+    insights.forEach((text, i) => {
+      setTimeout(() => feed.insertAdjacentHTML('beforeend', bubbleHtml(text)), i * 350);
+    });
+
+    btn.disabled = false;
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m12 3-1.9 4.9L5 9.8l4.1 3.2L7.8 18 12 15.2l4.2 2.8-1.3-4.9L19 9.8l-5.1-1.9L12 3Z"/></svg> Analizar mi negocio con IA`;
+  }, 900);
+}
+document.getElementById('analyzeBtn').addEventListener('click', analyzeBusiness);
+
+// ============================================================
+// Sincronización manual
+// ============================================================
+document.getElementById('refreshBtn').addEventListener('click', () => loadData());
+
+// ============================================================
+// Init
+// ============================================================
+(function init() {
+  loadCache();
+  renderAll();
+  loadData({ silent: true });
+})();
+</script>
+</body>
+</html>
