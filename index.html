@@ -448,7 +448,7 @@
  * ============================================================ */
 
 // ---- Configuración ----
-const API_URL = "TU_GOOGLE_APPS_SCRIPT_URL_AQUI"; // Reemplazar por la URL /exec del deployment
+const API_URL = "https://script.google.com/macros/s/AKfycbyC9xdbs-NuMLS-Dgo-7DgGeCCEGz2DfrdQ_ueDvTaOI_tRXTFjQNfUekwkV8afLoK_/exec"; // Reemplazar por la URL /exec del deployment
 const CACHE_KEY = "stockos_cache_v1";
 const CURRENCY = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const CURRENCY_DEC = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 });
@@ -558,7 +558,7 @@ function loadCache() {
 // Carga de datos
 // ============================================================
 async function loadData({ silent = false } = {}) {
-  const configured = API_URL && !API_URL.includes('https://script.google.com/macros/s/AKfycbwGc-iA0AdJATRO5HqACKT4rDDqtuz0zy0sMrSE5IvCl-g_PfnW6y2Zj2TjmUMmZ_nu/exec');
+  const configured = API_URL && !API_URL.includes('TU_GOOGLE_APPS_SCRIPT_URL_AQUI');
   const syncEl = document.getElementById('syncStatus');
 
   if (!configured) {
