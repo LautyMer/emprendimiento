@@ -269,6 +269,25 @@
               </div>
             </form>
           </div>
+
+          <!-- Registrar gasto extra -->
+          <div class="bg-base-900 border border-base-700/60 rounded-2xl p-5 lg:col-span-2">
+            <h3 class="text-sm font-semibold text-slate-200 mb-1">Registrar gasto extra</h3>
+            <p class="text-xs text-slate-500 mb-4">Flete, bolsas, cinta, servicios u otros costos operativos. Se descuentan de la Ganancia Neta semanal.</p>
+            <form id="gastoForm" class="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3 items-end">
+              <div>
+                <label class="text-xs text-slate-500 font-medium">Concepto</label>
+                <input type="text" id="gastoConcepto" required placeholder="Ej: Flete proveedor"
+                  class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/40">
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 font-medium">Monto</label>
+                <input type="number" id="gastoMonto" min="0.01" step="0.01" required placeholder="0.00"
+                  class="mt-1 w-full sm:w-36 bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-rose-500/40">
+              </div>
+              <button type="submit" class="bg-rose-500/90 hover:bg-rose-500 text-white font-semibold text-sm px-4 py-2.5 rounded-lg transition whitespace-nowrap">Registrar gasto</button>
+            </form>
+          </div>
         </div>
       </section>
 
@@ -381,7 +400,7 @@
  * ============================================================ */
 
 // ---- Configuración ----
-const API_URL = "https://script.google.com/macros/s/AKfycbzo8L6ERe6uKp_e-wnEq7Nyk-7_0q8tngBw-yA3ydVY0nJBhsZAPlV8nRyUzmiklNEj/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzaI08jvLhpRD2GMJHetc4MlqMmJ-urf2YV8RoJC66tqMXXzDHrUuezyruZBd7fruC7/exec"; // Reemplazar por la URL /exec del deployment
 const CACHE_KEY = "stockos_cache_v1";
 const CURRENCY = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const CURRENCY_DEC = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 });
@@ -390,6 +409,7 @@ const CURRENCY_DEC = new Intl.NumberFormat('es-AR', { style: 'currency', currenc
 const state = {
   inventario: [],
   movimientos: [],
+  gastosExtras: [],
   resumenSemanal: [],
   editingProductId: null,
   loading: false,
@@ -454,6 +474,7 @@ function saveCache() {
     localStorage.setItem(CACHE_KEY, JSON.stringify({
       inventario: state.inventario,
       movimientos: state.movimientos,
+      gastosExtras: state.gastosExtras,
       resumenSemanal: state.resumenSemanal,
       ts: Date.now(),
     }));
@@ -467,6 +488,7 @@ function loadCache() {
     const data = JSON.parse(raw);
     state.inventario = data.inventario || [];
     state.movimientos = data.movimientos || [];
+    state.gastosExtras = data.gastosExtras || [];
     state.resumenSemanal = data.resumenSemanal || [];
     return true;
   } catch (e) { return false; }
@@ -476,7 +498,7 @@ function loadCache() {
 // Carga de datos
 // ============================================================
 async function loadData({ silent = false } = {}) {
- const configured = API_URL && !API_URL.includes('TU_GOOGLE_APPS_SCRIPT_URL_AQUI');
+  const configured = API_URL && !API_URL.includes('TU_GOOGLE_APPS_SCRIPT_URL_AQUI');
   const syncEl = document.getElementById('syncStatus');
 
   if (!configured) {
@@ -493,6 +515,7 @@ async function loadData({ silent = false } = {}) {
     const data = await apiGet('getAll');
     state.inventario = data.inventario || [];
     state.movimientos = data.movimientos || [];
+    state.gastosExtras = data.gastosExtras || [];
     state.resumenSemanal = data.resumenSemanal || [];
     saveCache();
     syncEl.textContent = 'Sincronizado ✓';
@@ -555,18 +578,26 @@ function computeWeeklyKpis() {
       costos += Number(mv.Cantidad || 0) * (costoPorId[mv.ID_Producto] || 0);
     }
   });
+
+  let gastosExtras = 0;
+  state.gastosExtras.forEach(g => {
+    const fecha = new Date(g.Fecha);
+    if (fecha >= monday) gastosExtras += Number(g.Monto || 0);
+  });
+
   const gananciaBruta = ventas - costos;
-  // Ganancia neta simplificada = bruta (sin gastos operativos adicionales cargados)
-  return { ventas, costos, gananciaBruta, gananciaNeta: gananciaBruta, unidades };
+  const gananciaNeta = gananciaBruta - gastosExtras;
+  return { ventas, costos, gananciaBruta, gastosExtras, gananciaNeta, unidades };
 }
 
 function renderKpis() {
-  const { ventas, gananciaBruta, gananciaNeta, unidades } = computeWeeklyKpis();
+  const { ventas, gananciaBruta, gastosExtras, gananciaNeta, unidades } = computeWeeklyKpis();
   const bajoStock = state.inventario.filter(p => Number(p.Stock_Actual) <= Number(p.Stock_Minimo));
 
   document.getElementById('kpiVentas').textContent = CURRENCY.format(ventas || 0);
   document.getElementById('kpiGanancia').textContent = CURRENCY.format(gananciaNeta || 0);
-  document.getElementById('kpiGananciaPct').textContent = `Bruta: ${CURRENCY.format(gananciaBruta || 0)}`;
+  document.getElementById('kpiGananciaPct').textContent =
+    `Bruta: ${CURRENCY.format(gananciaBruta || 0)} · Gastos: ${CURRENCY.format(gastosExtras || 0)}`;
   document.getElementById('kpiUnidades').textContent = (unidades || 0).toLocaleString('es-AR');
   document.getElementById('kpiAlertas').textContent = bajoStock.length;
 
@@ -767,11 +798,25 @@ document.getElementById('quickSaleBtn').addEventListener('click', () => switchVi
 // ============================================================
 // Formulario: Movimiento
 // ============================================================
+// Autocompleta el precio unitario según el tipo de operación:
+// - Venta: precio de venta registrado (el usuario puede editarlo para aplicar un descuento).
+// - Reposición / Ajuste por rotura: costo unitario (lo que le costó comprarlo).
+function autofillPrecioSegunTipo() {
+  const producto = findProductoFromInput(document.getElementById('movProducto').value);
+  const tipo = document.getElementById('movTipo').value;
+  if (!producto || !tipo) return;
+
+  const precioInput = document.getElementById('movPrecio');
+  precioInput.value = tipo === 'Venta' ? producto.Precio_Venta : producto.Costo_Unitario;
+  updateMovTotalPreview();
+}
+
 document.querySelectorAll('.tipo-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tipo-btn').forEach(b => b.classList.remove('ring-2', 'ring-sky-500/50', 'border-sky-500/60'));
     btn.classList.add('ring-2', 'ring-sky-500/50', 'border-sky-500/60');
     document.getElementById('movTipo').value = btn.dataset.tipo;
+    autofillPrecioSegunTipo();
   });
 });
 
@@ -783,13 +828,7 @@ function updateMovTotalPreview() {
 document.getElementById('movCantidad').addEventListener('input', updateMovTotalPreview);
 document.getElementById('movPrecio').addEventListener('input', updateMovTotalPreview);
 
-document.getElementById('movProducto').addEventListener('change', (e) => {
-  const p = findProductoFromInput(e.target.value);
-  if (p && !document.getElementById('movPrecio').value) {
-    document.getElementById('movPrecio').value = p.Precio_Venta;
-    updateMovTotalPreview();
-  }
-});
+document.getElementById('movProducto').addEventListener('change', autofillPrecioSegunTipo);
 
 document.getElementById('movimientoForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -886,6 +925,29 @@ document.getElementById('productoForm').addEventListener('submit', async (e) => 
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = 'Guardar producto';
+  }
+});
+
+document.getElementById('gastoForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    Concepto: document.getElementById('gastoConcepto').value.trim(),
+    Monto: Number(document.getElementById('gastoMonto').value),
+  };
+
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Guardando...';
+  try {
+    await apiPost('registrarGasto', payload);
+    toast(`Gasto "${payload.Concepto}" registrado por ${CURRENCY_DEC.format(payload.Monto)}.`, 'success');
+    e.target.reset();
+    await loadData({ silent: true });
+  } catch (err) {
+    toast(`Error al registrar el gasto: ${err.message}`, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Registrar gasto';
   }
 });
 
@@ -1036,3 +1098,4 @@ document.getElementById('refreshBtn').addEventListener('click', () => loadData()
 </script>
 </body>
 </html>
+
