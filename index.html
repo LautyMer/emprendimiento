@@ -78,6 +78,19 @@
 
   .chip-ok { color:#34d399; background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.25); }
   .chip-low { color:#fb7185; background:rgba(251,113,133,0.12); border:1px solid rgba(251,113,133,0.3); }
+
+  input[type="checkbox"].toggle-check {
+    appearance:none; -webkit-appearance:none;
+    width:2.5rem; height:1.4rem; border-radius:999px;
+    background:#1e293b; border:1px solid #334155; position:relative; cursor:pointer;
+    transition: background .2s;
+  }
+  input[type="checkbox"].toggle-check::after {
+    content:''; position:absolute; top:2px; left:2px; width:1rem; height:1rem;
+    border-radius:999px; background:#94a3b8; transition: transform .2s, background .2s;
+  }
+  input[type="checkbox"].toggle-check:checked { background: rgba(251,113,133,0.25); border-color:#fb7185; }
+  input[type="checkbox"].toggle-check:checked::after { transform: translateX(1.1rem); background:#fb7185; }
 </style>
 </head>
 <body class="bg-base-950 text-slate-200 min-h-screen bg-grid">
@@ -103,6 +116,9 @@
       </button>
       <button data-view="inventario" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-base-800 transition">
         <span class="w-1.5 h-1.5 rounded-full bg-sky-400 nav-dot opacity-0 transition"></span> Inventario
+      </button>
+      <button data-view="clientes" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-base-800 transition">
+        <span class="w-1.5 h-1.5 rounded-full bg-sky-400 nav-dot opacity-0 transition"></span> Clientes
       </button>
       <button data-view="ia" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-base-800 transition">
         <span class="w-1.5 h-1.5 rounded-full bg-sky-400 nav-dot opacity-0 transition"></span> Asistente IA
@@ -164,7 +180,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 md:gap-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6">
           <div class="kpi-card bg-base-900 border border-base-700/60 rounded-2xl p-4 flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-lg shrink-0">💵</div>
             <div class="min-w-0">
@@ -177,6 +193,13 @@
             <div class="min-w-0">
               <p class="text-xs text-slate-500 font-medium">Caja Transferencias</p>
               <p class="font-mono-data text-xl md:text-2xl font-bold text-sky-400 mt-0.5 truncate" id="kpiCajaTransferencia">$0</p>
+            </div>
+          </div>
+          <div class="kpi-card bg-base-900 border border-base-700/60 rounded-2xl p-4 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-lg shrink-0">🧾</div>
+            <div class="min-w-0">
+              <p class="text-xs text-slate-500 font-medium">Cuentas por Cobrar</p>
+              <p class="font-mono-data text-xl md:text-2xl font-bold text-amber-400 mt-0.5 truncate" id="kpiCuentasPorCobrar">$0</p>
             </div>
           </div>
         </div>
@@ -215,6 +238,7 @@
                 <input type="hidden" id="movProductoId">
                 <div id="movProductoDropdown" class="hidden absolute z-20 left-0 right-0 mt-1 bg-base-800 border border-base-700 rounded-lg max-h-64 overflow-y-auto shadow-xl"></div>
               </div>
+
               <div>
                 <label class="text-xs text-slate-500 font-medium">Tipo de operación</label>
                 <div class="grid grid-cols-3 gap-2 mt-1">
@@ -224,14 +248,52 @@
                 </div>
                 <input type="hidden" id="movTipo" required>
               </div>
-              <div>
+
+              <div id="ventaSenaToggleWrap" class="hidden">
+                <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input type="checkbox" id="ventaConSena" class="toggle-check">
+                  <span class="text-sm text-slate-300">Venta con Seña / A Crédito</span>
+                </label>
+              </div>
+
+              <div id="creditoFields" class="hidden space-y-3 border border-rose-500/25 bg-rose-500/5 rounded-lg p-3">
+                <div>
+                  <label class="text-xs text-slate-500 font-medium">Cliente</label>
+                  <div class="mt-1 flex gap-2">
+                    <select id="movCliente" class="flex-1 bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/40">
+                      <option value="">Seleccionar cliente…</option>
+                    </select>
+                    <button type="button" id="quickNewClientBtn" class="px-3 text-xs font-semibold text-rose-300 border border-rose-500/40 rounded-lg hover:bg-rose-500/10 transition whitespace-nowrap">+ Nuevo</button>
+                  </div>
+                </div>
+                <div>
+                  <label class="text-xs text-slate-500 font-medium">Monto entregado (seña)</label>
+                  <input type="number" id="movMontoEntregado" min="0" step="0.01" value="0"
+                    class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-rose-500/40">
+                </div>
+                <div>
+                  <label class="text-xs text-slate-500 font-medium">Caja de la seña</label>
+                  <div class="grid grid-cols-2 gap-2 mt-1">
+                    <button type="button" data-metodo="Efectivo" class="sena-metodo-btn text-sm font-medium py-2 rounded-lg border border-base-700 bg-base-800 hover:border-emerald-500/50 transition">💵 Efectivo</button>
+                    <button type="button" data-metodo="Transferencia" class="sena-metodo-btn text-sm font-medium py-2 rounded-lg border border-base-700 bg-base-800 hover:border-sky-500/50 transition">💳 Transferencia</button>
+                  </div>
+                  <input type="hidden" id="movSenaMetodoPago">
+                </div>
+                <div class="flex items-center justify-between bg-base-900/60 border border-rose-500/25 rounded-lg px-3.5 py-2.5">
+                  <span class="text-xs text-rose-300">Saldo pendiente para el cliente</span>
+                  <span class="font-mono-data font-bold text-rose-300" id="saldoRestantePreview">$0.00</span>
+                </div>
+              </div>
+
+              <div id="metodoPagoNormalWrap">
                 <label class="text-xs text-slate-500 font-medium">Método de pago</label>
                 <div class="grid grid-cols-2 gap-2 mt-1">
                   <button type="button" data-metodo="Efectivo" class="metodo-pago-btn text-sm font-medium py-2 rounded-lg border border-base-700 bg-base-800 hover:border-emerald-500/50 transition">💵 Efectivo</button>
                   <button type="button" data-metodo="Transferencia" class="metodo-pago-btn text-sm font-medium py-2 rounded-lg border border-base-700 bg-base-800 hover:border-sky-500/50 transition">💳 Transferencia</button>
                 </div>
-                <input type="hidden" id="movMetodoPago" required>
+                <input type="hidden" id="movMetodoPago">
               </div>
+
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="text-xs text-slate-500 font-medium">Cantidad</label>
@@ -374,6 +436,44 @@
         </div>
       </section>
 
+      <!-- ============ VIEW: CLIENTES ============ -->
+      <section id="view-clientes" class="view">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div class="bg-base-900 border border-base-700/60 rounded-2xl p-5 lg:col-span-1 h-fit">
+            <h3 class="text-sm font-semibold text-slate-200 mb-1">Nuevo cliente</h3>
+            <p class="text-xs text-slate-500 mb-4">Se le asigna un ID automáticamente.</p>
+            <form id="clienteForm" class="space-y-3.5">
+              <div>
+                <label class="text-xs text-slate-500 font-medium">Nombre</label>
+                <input type="text" id="clienteNombre" required class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/40">
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 font-medium">Teléfono</label>
+                <input type="tel" id="clienteTelefono" placeholder="Opcional" class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/40">
+              </div>
+              <button type="submit" class="w-full bg-sky-500 hover:bg-sky-400 text-base-950 font-semibold text-sm py-3 rounded-lg transition">Agregar cliente</button>
+            </form>
+          </div>
+
+          <div class="lg:col-span-2 bg-base-900 border border-base-700/60 rounded-2xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left text-xs text-slate-500 border-b border-base-700/60">
+                    <th class="px-4 py-3 font-medium">Cliente</th>
+                    <th class="px-4 py-3 font-medium hidden sm:table-cell">Teléfono</th>
+                    <th class="px-4 py-3 font-medium">Saldo pendiente</th>
+                    <th class="px-4 py-3 font-medium text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="clientesTableBody"></tbody>
+              </table>
+            </div>
+            <p id="clientesEmptyState" class="hidden text-center text-sm text-slate-500 py-10">Todavía no registraste ningún cliente.</p>
+          </div>
+        </div>
+      </section>
+
       <!-- ============ VIEW: IA ============ -->
       <section id="view-ia" class="view">
         <div class="bg-base-900 border border-base-700/60 rounded-2xl p-5 md:p-6 max-w-3xl">
@@ -384,7 +484,7 @@
               </div>
               <div>
                 <h3 class="text-sm font-semibold text-white">Asistente de negocio</h3>
-                <p class="text-xs text-slate-500">Analiza inventario y ventas en tiempo real</p>
+                <p class="text-xs text-slate-500">Analiza inventario, ventas y clientes en tiempo real</p>
               </div>
             </div>
             <button id="analyzeBtn" class="flex items-center gap-2 bg-sky-500 hover:bg-sky-400 text-base-950 font-semibold text-sm px-4 py-2.5 rounded-lg transition shadow-glow">
@@ -398,7 +498,7 @@
                 <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
               </div>
               <p class="text-sm text-slate-400 bg-base-800/60 border border-base-700/60 rounded-xl rounded-tl-sm px-4 py-3 leading-relaxed">
-                Presioná <span class="text-slate-200 font-medium">"Analizar mi negocio con IA"</span> y voy a leer tu inventario y tus ventas para darte sugerencias accionables sobre márgenes, stock crítico y tendencias semanales.
+                Presioná <span class="text-slate-200 font-medium">"Analizar mi negocio con IA"</span> y voy a leer tu inventario, tus ventas y tus cuentas por cobrar para darte sugerencias accionables.
               </p>
             </div>
           </div>
@@ -409,36 +509,83 @@
 </div>
 
 <!-- Bottom nav (mobile) -->
-<nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-base-900/95 backdrop-blur border-t border-base-700/60 flex items-center justify-around py-2 px-2">
-  <button data-view="dashboard" class="nav-item-mobile active flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-slate-500">
+<nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-base-900/95 backdrop-blur border-t border-base-700/60 flex items-center justify-around py-2 px-1">
+  <button data-view="dashboard" class="nav-item-mobile active flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg text-slate-500">
     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
     <span class="text-[10px] font-medium">Inicio</span>
   </button>
-  <button data-view="operaciones" class="nav-item-mobile flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-slate-500">
+  <button data-view="operaciones" class="nav-item-mobile flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg text-slate-500">
     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
     <span class="text-[10px] font-medium">Operar</span>
   </button>
-  <button data-view="inventario" class="nav-item-mobile flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-slate-500">
+  <button data-view="inventario" class="nav-item-mobile flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg text-slate-500">
     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8H3M21 8v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8M10 12h4M3 3h18v5H3z"/></svg>
     <span class="text-[10px] font-medium">Stock</span>
   </button>
-  <button data-view="ia" class="nav-item-mobile flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-slate-500">
+  <button data-view="clientes" class="nav-item-mobile flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg text-slate-500">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <span class="text-[10px] font-medium">Clientes</span>
+  </button>
+  <button data-view="ia" class="nav-item-mobile flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg text-slate-500">
     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
     <span class="text-[10px] font-medium">IA</span>
   </button>
 </nav>
 
-<!-- Modal: editar producto -->
-<dialog id="editModal" class="w-full max-w-md m-auto rounded-2xl">
+<!-- Dialog: Cobrar / Registrar entrega de deuda -->
+<dialog id="cobroDialog" class="w-full max-w-sm m-auto rounded-2xl">
   <div class="bg-base-900 border border-base-700 rounded-2xl p-5">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-sm font-semibold text-white">Editar producto</h3>
-      <button id="closeModalBtn" class="text-slate-500 hover:text-slate-200">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="text-sm font-semibold text-white">Cobrar / Registrar entrega</h3>
+      <button type="button" id="cobroCancelBtnX" class="text-slate-500 hover:text-slate-200">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
     </div>
-    <p class="text-xs text-slate-500 mb-4">Los cambios se reflejan en Google Sheets al guardar.</p>
-    <button id="goToEditFormBtn" class="w-full bg-sky-500 hover:bg-sky-400 text-base-950 font-semibold text-sm py-3 rounded-lg transition">Ir al formulario de edición</button>
+    <p class="text-sm text-slate-300 font-medium mb-0.5" id="cobroClienteNombre">—</p>
+    <p class="text-xs text-slate-500 mb-4">Saldo pendiente actual: <span class="font-mono-data text-rose-400" id="cobroSaldoActual">$0</span></p>
+    <input type="hidden" id="cobroClienteId">
+    <div class="space-y-3.5">
+      <div>
+        <label class="text-xs text-slate-500 font-medium">Monto entregado</label>
+        <input type="number" id="cobroMonto" min="0.01" step="0.01"
+          class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+      </div>
+      <div>
+        <label class="text-xs text-slate-500 font-medium">Caja receptora</label>
+        <div class="grid grid-cols-2 gap-2 mt-1">
+          <button type="button" data-metodo="Efectivo" class="cobro-metodo-btn text-sm font-medium py-2 rounded-lg border border-base-700 bg-base-800 hover:border-emerald-500/50 transition">💵 Efectivo</button>
+          <button type="button" data-metodo="Transferencia" class="cobro-metodo-btn text-sm font-medium py-2 rounded-lg border border-base-700 bg-base-800 hover:border-sky-500/50 transition">💳 Transferencia</button>
+        </div>
+        <input type="hidden" id="cobroMetodoPago">
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button type="button" id="cobroCancelBtn" class="flex-1 text-sm font-medium text-slate-400 hover:text-slate-200 border border-base-700 rounded-lg py-2.5 transition">Cancelar</button>
+        <button type="button" id="cobroSubmitBtn" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-base-950 font-semibold text-sm py-2.5 rounded-lg transition">Registrar cobro</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- Dialog: Nuevo cliente rápido (desde el formulario de movimiento) -->
+<dialog id="quickClientDialog" class="w-full max-w-sm m-auto rounded-2xl">
+  <div class="bg-base-900 border border-base-700 rounded-2xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-sm font-semibold text-white">Nuevo cliente</h3>
+      <button type="button" id="quickClientCancelBtnX" class="text-slate-500 hover:text-slate-200">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="quickClientForm" class="space-y-3.5">
+      <div>
+        <label class="text-xs text-slate-500 font-medium">Nombre</label>
+        <input type="text" id="quickClienteNombre" required class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/40">
+      </div>
+      <div>
+        <label class="text-xs text-slate-500 font-medium">Teléfono</label>
+        <input type="tel" id="quickClienteTelefono" placeholder="Opcional" class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/40">
+      </div>
+      <button type="submit" class="w-full bg-rose-500/90 hover:bg-rose-500 text-white font-semibold text-sm py-2.5 rounded-lg transition">Guardar cliente</button>
+    </form>
   </div>
 </dialog>
 
@@ -448,7 +595,7 @@
  * ============================================================ */
 
 // ---- Configuración ----
-const API_URL = "https://script.google.com/macros/s/AKfycbzPAJr_07IH4NfgXK1TKypeIy7Rav7JP2MnU-yda4znpEkXLz_lKktyfoFGLFdKOEM/exec"; // Reemplazar por la URL /exec del deployment
+const API_URL = "https://script.google.com/macros/s/AKfycby4ZxT08aR4cXWR7Xstu44AforpkJEejn4awXa5CDeBSaN9DxLMGSd_fit_8mYHV4ld/exec"; // Reemplazar por la URL /exec del deployment
 const CACHE_KEY = "stockos_cache_v1";
 const CURRENCY = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const CURRENCY_DEC = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 });
@@ -466,9 +613,11 @@ function thumbHtml(url, sizeClasses = 'w-10 h-10') {
 const state = {
   inventario: [],
   movimientos: [],
+  clientes: [],
   gastosExtras: [],
   resumenSemanal: [],
   caja: { efectivo: 0, transferencia: 0 },
+  cuentasPorCobrar: 0,
   editingProductId: null,
   loading: false,
 };
@@ -482,9 +631,9 @@ let chartTopProductos = null;
 function toast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
   const colors = {
-    success: { border: 'border-emerald-500/40', icon: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    error:   { border: 'border-rose-500/40',    icon: 'text-rose-400',    bg: 'bg-rose-500/10' },
-    info:    { border: 'border-sky-500/40',     icon: 'text-sky-400',     bg: 'bg-sky-500/10' },
+    success: { border: 'border-emerald-500/40', icon: 'text-emerald-400' },
+    error:   { border: 'border-rose-500/40',    icon: 'text-rose-400' },
+    info:    { border: 'border-sky-500/40',     icon: 'text-sky-400' },
   };
   const c = colors[type] || colors.info;
   const el = document.createElement('div');
@@ -532,9 +681,11 @@ function saveCache() {
     localStorage.setItem(CACHE_KEY, JSON.stringify({
       inventario: state.inventario,
       movimientos: state.movimientos,
+      clientes: state.clientes,
       gastosExtras: state.gastosExtras,
       resumenSemanal: state.resumenSemanal,
       caja: state.caja,
+      cuentasPorCobrar: state.cuentasPorCobrar,
       ts: Date.now(),
     }));
   } catch (e) { /* almacenamiento no disponible, se ignora */ }
@@ -547,9 +698,11 @@ function loadCache() {
     const data = JSON.parse(raw);
     state.inventario = data.inventario || [];
     state.movimientos = data.movimientos || [];
+    state.clientes = data.clientes || [];
     state.gastosExtras = data.gastosExtras || [];
     state.resumenSemanal = data.resumenSemanal || [];
     state.caja = data.caja || { efectivo: 0, transferencia: 0 };
+    state.cuentasPorCobrar = data.cuentasPorCobrar || 0;
     return true;
   } catch (e) { return false; }
 }
@@ -575,9 +728,11 @@ async function loadData({ silent = false } = {}) {
     const data = await apiGet('getAll');
     state.inventario = data.inventario || [];
     state.movimientos = data.movimientos || [];
+    state.clientes = data.clientes || [];
     state.gastosExtras = data.gastosExtras || [];
     state.resumenSemanal = data.resumenSemanal || [];
     state.caja = data.caja || { efectivo: 0, transferencia: 0 };
+    state.cuentasPorCobrar = data.cuentasPorCobrar || 0;
     saveCache();
     syncEl.textContent = 'Sincronizado ✓';
     if (!silent) toast('Datos sincronizados con Google Sheets.', 'success');
@@ -605,6 +760,7 @@ function renderSkeletons() {
   document.getElementById('kpiAlertas').innerHTML = '<span class="skeleton inline-block w-10 h-6 rounded"></span>';
   document.getElementById('kpiCajaEfectivo').innerHTML = '<span class="skeleton inline-block w-20 h-6 rounded"></span>';
   document.getElementById('kpiCajaTransferencia').innerHTML = '<span class="skeleton inline-block w-20 h-6 rounded"></span>';
+  document.getElementById('kpiCuentasPorCobrar').innerHTML = '<span class="skeleton inline-block w-20 h-6 rounded"></span>';
   document.getElementById('invTableBody').innerHTML = Array.from({ length: 4 }).map(() => `
     <tr class="border-b border-base-700/40">
       <td class="px-4 py-3" colspan="7"><div class="skeleton h-5 rounded w-full"></div></td>
@@ -619,6 +775,8 @@ function renderAll() {
   renderCharts();
   renderInventoryTable();
   refreshProductDatalist();
+  renderClientesTable();
+  refreshClienteSelect();
 }
 
 // ---- KPIs ----
@@ -666,6 +824,7 @@ function renderKpis() {
 
   document.getElementById('kpiCajaEfectivo').textContent = CURRENCY.format(state.caja.efectivo || 0);
   document.getElementById('kpiCajaTransferencia').textContent = CURRENCY.format(state.caja.transferencia || 0);
+  document.getElementById('kpiCuentasPorCobrar').textContent = CURRENCY.format(state.cuentasPorCobrar || 0);
 
   const alertasEl = document.getElementById('kpiAlertas');
   const alertasLabel = document.getElementById('kpiAlertasLabel');
@@ -765,8 +924,6 @@ function renderChartTopProductos() {
 let movProductoDropdownItems = [];
 
 function refreshProductDatalist() {
-  // Se mantiene el nombre de la función para no romper las llamadas existentes
-  // en renderAll(); ahora solo resetea el buscador cuando cambian los datos.
   const selectedId = document.getElementById('movProductoId').value;
   if (selectedId && !state.inventario.some(p => String(p.ID_Producto) === selectedId)) {
     document.getElementById('movProductoId').value = '';
@@ -802,7 +959,7 @@ function renderMovProductoDropdown(query) {
 
   dropdown.querySelectorAll('[data-select-producto]').forEach(btn => {
     btn.addEventListener('mousedown', (e) => {
-      e.preventDefault(); // evita que el input pierda foco antes del click
+      e.preventDefault();
       selectMovProducto(btn.dataset.selectProducto);
     });
   });
@@ -828,7 +985,7 @@ function getSelectedMovProducto() {
 const movProductoSearchEl = document.getElementById('movProductoSearch');
 movProductoSearchEl.addEventListener('focus', () => renderMovProductoDropdown(movProductoSearchEl.value));
 movProductoSearchEl.addEventListener('input', () => {
-  document.getElementById('movProductoId').value = ''; // el texto ya no coincide con una selección confirmada
+  document.getElementById('movProductoId').value = '';
   renderMovProductoDropdown(movProductoSearchEl.value);
 });
 movProductoSearchEl.addEventListener('blur', () => {
@@ -890,6 +1047,51 @@ function renderInventoryTable() {
     btn.addEventListener('click', () => deleteProduct(btn.dataset.deleteId)));
 }
 
+// ---- Tabla de clientes ----
+function renderClientesTable() {
+  const tbody = document.getElementById('clientesTableBody');
+  const emptyState = document.getElementById('clientesEmptyState');
+
+  if (state.clientes.length === 0) {
+    tbody.innerHTML = '';
+    emptyState.classList.remove('hidden');
+    return;
+  }
+  emptyState.classList.add('hidden');
+
+  const sorted = [...state.clientes].sort((a, b) => Number(b.Saldo_Pendiente || 0) - Number(a.Saldo_Pendiente || 0));
+
+  tbody.innerHTML = sorted.map(c => {
+    const saldo = Number(c.Saldo_Pendiente || 0);
+    const debe = saldo > 0;
+    return `
+    <tr class="border-b border-base-700/40 hover:bg-base-800/40 transition">
+      <td class="px-4 py-3">
+        <p class="font-medium text-slate-200">${c.Nombre}</p>
+        <p class="text-[11px] text-slate-500 font-mono-data">${c.ID_Cliente}</p>
+      </td>
+      <td class="px-4 py-3 text-slate-400 hidden sm:table-cell">${c.Telefono || '—'}</td>
+      <td class="px-4 py-3 font-mono-data font-semibold ${debe ? 'text-rose-400' : 'text-emerald-400'}">${CURRENCY.format(saldo)}</td>
+      <td class="px-4 py-3 text-right">
+        <button data-cobrar-id="${c.ID_Cliente}" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 transition whitespace-nowrap">
+          Cobrar / Entrega
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('[data-cobrar-id]').forEach(btn =>
+    btn.addEventListener('click', () => openCobroDialog(btn.dataset.cobrarId)));
+}
+
+function refreshClienteSelect() {
+  const select = document.getElementById('movCliente');
+  const current = select.value;
+  select.innerHTML = '<option value="">Seleccionar cliente…</option>' +
+    state.clientes.map(c => `<option value="${c.ID_Cliente}">${c.Nombre}${Number(c.Saldo_Pendiente) > 0 ? ` (debe ${CURRENCY.format(c.Saldo_Pendiente)})` : ''}</option>`).join('');
+  if (state.clientes.some(c => c.ID_Cliente === current)) select.value = current;
+}
+
 // ============================================================
 // Navegación entre vistas
 // ============================================================
@@ -897,6 +1099,7 @@ const viewTitles = {
   dashboard: ['Dashboard', 'Resumen en tiempo real de tu negocio'],
   operaciones: ['Operaciones', 'Registrá ventas, reposiciones y nuevos productos'],
   inventario: ['Inventario', 'Stock actualizado de todos tus productos'],
+  clientes: ['Clientes', 'Cartera de clientes y cuentas corrientes'],
   ia: ['Asistente IA', 'Análisis automático de tu negocio'],
 };
 
@@ -925,9 +1128,6 @@ document.getElementById('quickSaleBtn').addEventListener('click', () => switchVi
 // ============================================================
 // Formulario: Movimiento
 // ============================================================
-// Autocompleta el precio unitario según el tipo de operación:
-// - Venta: precio de venta registrado (el usuario puede editarlo para aplicar un descuento).
-// - Reposición / Ajuste por rotura: costo unitario (lo que le costó comprarlo).
 function autofillPrecioSegunTipo() {
   const producto = getSelectedMovProducto();
   const tipo = document.getElementById('movTipo').value;
@@ -938,21 +1138,58 @@ function autofillPrecioSegunTipo() {
   updateMovTotalPreview();
 }
 
-document.querySelectorAll('.metodo-pago-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.metodo-pago-btn').forEach(b => b.classList.remove('ring-2', 'ring-emerald-500/50', 'ring-sky-500/50', 'border-emerald-500/60', 'border-sky-500/60'));
-    const ringColor = btn.dataset.metodo === 'Efectivo' ? 'ring-emerald-500/50 border-emerald-500/60' : 'ring-sky-500/50 border-sky-500/60';
-    btn.classList.add('ring-2', ...ringColor.split(' '));
-    document.getElementById('movMetodoPago').value = btn.dataset.metodo;
-  });
-});
+function updateMovimientoFormVisibility() {
+  const tipo = document.getElementById('movTipo').value;
+  const toggleWrap = document.getElementById('ventaSenaToggleWrap');
+  const esVenta = tipo === 'Venta';
+  toggleWrap.classList.toggle('hidden', !esVenta);
+
+  if (!esVenta) {
+    document.getElementById('ventaConSena').checked = false;
+    updateCreditoFieldsVisibility();
+  }
+}
+
+function updateCreditoFieldsVisibility() {
+  const checked = document.getElementById('ventaConSena').checked;
+  document.getElementById('creditoFields').classList.toggle('hidden', !checked);
+  document.getElementById('metodoPagoNormalWrap').classList.toggle('hidden', checked);
+  if (!checked) {
+    document.getElementById('movCliente').value = '';
+    document.getElementById('movMontoEntregado').value = '0';
+    document.querySelectorAll('.sena-metodo-btn').forEach(b => b.classList.remove('ring-2', 'ring-emerald-500/50', 'ring-sky-500/50', 'border-emerald-500/60', 'border-sky-500/60'));
+    document.getElementById('movSenaMetodoPago').value = '';
+  }
+  updateSaldoRestantePreview();
+}
+
+document.getElementById('ventaConSena').addEventListener('change', updateCreditoFieldsVisibility);
 
 document.querySelectorAll('.tipo-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tipo-btn').forEach(b => b.classList.remove('ring-2', 'ring-sky-500/50', 'border-sky-500/60'));
     btn.classList.add('ring-2', 'ring-sky-500/50', 'border-sky-500/60');
     document.getElementById('movTipo').value = btn.dataset.tipo;
+    updateMovimientoFormVisibility();
     autofillPrecioSegunTipo();
+  });
+});
+
+document.querySelectorAll('.metodo-pago-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.metodo-pago-btn').forEach(b => b.classList.remove('ring-2', 'ring-emerald-500/50', 'ring-sky-500/50', 'border-emerald-500/60', 'border-sky-500/60'));
+    const ring = btn.dataset.metodo === 'Efectivo' ? ['ring-emerald-500/50', 'border-emerald-500/60'] : ['ring-sky-500/50', 'border-sky-500/60'];
+    btn.classList.add('ring-2', ...ring);
+    document.getElementById('movMetodoPago').value = btn.dataset.metodo;
+  });
+});
+
+document.querySelectorAll('.sena-metodo-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.sena-metodo-btn').forEach(b => b.classList.remove('ring-2', 'ring-emerald-500/50', 'ring-sky-500/50', 'border-emerald-500/60', 'border-sky-500/60'));
+    const ring = btn.dataset.metodo === 'Efectivo' ? ['ring-emerald-500/50', 'border-emerald-500/60'] : ['ring-sky-500/50', 'border-sky-500/60'];
+    btn.classList.add('ring-2', ...ring);
+    document.getElementById('movSenaMetodoPago').value = btn.dataset.metodo;
   });
 });
 
@@ -960,9 +1197,52 @@ function updateMovTotalPreview() {
   const cant = Number(document.getElementById('movCantidad').value || 0);
   const precio = Number(document.getElementById('movPrecio').value || 0);
   document.getElementById('movTotalPreview').textContent = CURRENCY_DEC.format(cant * precio);
+  updateSaldoRestantePreview();
 }
+
+function updateSaldoRestantePreview() {
+  const cant = Number(document.getElementById('movCantidad').value || 0);
+  const precio = Number(document.getElementById('movPrecio').value || 0);
+  const total = cant * precio;
+  const montoEntregado = Number(document.getElementById('movMontoEntregado').value || 0);
+  const saldoRestante = Math.max(0, total - montoEntregado);
+  document.getElementById('saldoRestantePreview').textContent = CURRENCY_DEC.format(saldoRestante);
+}
+
 document.getElementById('movCantidad').addEventListener('input', updateMovTotalPreview);
 document.getElementById('movPrecio').addEventListener('input', updateMovTotalPreview);
+document.getElementById('movMontoEntregado').addEventListener('input', updateSaldoRestantePreview);
+
+document.getElementById('movProductoSearch').addEventListener('change', autofillPrecioSegunTipo);
+
+document.getElementById('quickNewClientBtn').addEventListener('click', () => {
+  document.getElementById('quickClientForm').reset();
+  document.getElementById('quickClientDialog').showModal();
+});
+document.getElementById('quickClientCancelBtnX').addEventListener('click', () => document.getElementById('quickClientDialog').close());
+
+document.getElementById('quickClientForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    Nombre: document.getElementById('quickClienteNombre').value.trim(),
+    Telefono: document.getElementById('quickClienteTelefono').value.trim(),
+  };
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Guardando...';
+  try {
+    const result = await apiPost('crearCliente', payload);
+    toast(`Cliente "${payload.Nombre}" agregado.`, 'success');
+    await loadData({ silent: true });
+    document.getElementById('movCliente').value = result.id;
+    document.getElementById('quickClientDialog').close();
+  } catch (err) {
+    toast(`Error al crear el cliente: ${err.message}`, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Guardar cliente';
+  }
+});
 
 document.getElementById('movimientoForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -971,8 +1251,8 @@ document.getElementById('movimientoForm').addEventListener('submit', async (e) =
 
   if (!producto) return toast('Seleccioná un producto válido de la lista.', 'error');
   if (!tipo) return toast('Elegí un tipo de operación.', 'error');
-  const metodoPago = document.getElementById('movMetodoPago').value;
-  if (!metodoPago) return toast('Elegí un método de pago: Efectivo o Transferencia.', 'error');
+
+  const esConSena = tipo === 'Venta' && document.getElementById('ventaConSena').checked;
 
   const payload = {
     ID_Producto: producto.ID_Producto,
@@ -980,21 +1260,44 @@ document.getElementById('movimientoForm').addEventListener('submit', async (e) =
     Tipo: tipo,
     Cantidad: Number(document.getElementById('movCantidad').value),
     Precio_Unitario: Number(document.getElementById('movPrecio').value),
-    Metodo_Pago: metodoPago,
   };
+
+  if (esConSena) {
+    const clienteId = document.getElementById('movCliente').value;
+    if (!clienteId) return toast('Seleccioná un cliente para la venta con seña / a crédito.', 'error');
+    const montoEntregado = Number(document.getElementById('movMontoEntregado').value || 0);
+    const metodoSena = document.getElementById('movSenaMetodoPago').value;
+    if (montoEntregado > 0 && !metodoSena) return toast('Elegí a qué caja ingresa la seña.', 'error');
+    payload.ID_Cliente = clienteId;
+    payload.Monto_Entregado = montoEntregado;
+    if (metodoSena) payload.Metodo_Pago = metodoSena;
+  } else {
+    const metodoPago = document.getElementById('movMetodoPago').value;
+    if (!metodoPago) return toast('Elegí un método de pago: Efectivo o Transferencia.', 'error');
+    payload.Metodo_Pago = metodoPago;
+  }
 
   const submitBtn = e.target.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
   submitBtn.textContent = 'Guardando...';
   try {
-    await apiPost('registrarMovimiento', payload);
-    toast(`Movimiento registrado: ${tipo} de ${payload.Cantidad}× ${producto.Nombre} (${metodoPago}).`, 'success');
+    const result = await apiPost('registrarMovimiento', payload);
+    if (esConSena && result.saldoRestante > 0) {
+      toast(`Venta registrada. Saldo pendiente del cliente: ${CURRENCY_DEC.format(result.saldoRestante)}.`, 'success');
+    } else {
+      toast(`Movimiento registrado: ${tipo} de ${payload.Cantidad}× ${producto.Nombre}.`, 'success');
+    }
     e.target.reset();
     document.getElementById('movProductoId').value = '';
     document.getElementById('movTotalPreview').textContent = '$0.00';
-    document.querySelectorAll('.tipo-btn').forEach(b => b.classList.remove('ring-2', 'ring-sky-500/50', 'border-sky-500/60'));
-    document.querySelectorAll('.metodo-pago-btn').forEach(b => b.classList.remove('ring-2', 'ring-emerald-500/50', 'ring-sky-500/50', 'border-emerald-500/60', 'border-sky-500/60'));
+    document.getElementById('saldoRestantePreview').textContent = '$0.00';
+    document.getElementById('ventaConSena').checked = false;
+    document.querySelectorAll('.tipo-btn, .metodo-pago-btn, .sena-metodo-btn').forEach(b =>
+      b.classList.remove('ring-2', 'ring-emerald-500/50', 'ring-sky-500/50', 'border-emerald-500/60', 'border-sky-500/60'));
     document.getElementById('movMetodoPago').value = '';
+    document.getElementById('movSenaMetodoPago').value = '';
+    updateMovimientoFormVisibility();
+    updateCreditoFieldsVisibility();
     await loadData({ silent: true });
   } catch (err) {
     toast(`Error al registrar el movimiento: ${err.message}`, 'error');
@@ -1039,7 +1342,6 @@ function resetProductForm() {
   updateProdImgPreview();
 }
 
-// Vista previa en tiempo real de la imagen del producto mientras se escribe la URL
 function updateProdImgPreview() {
   const url = document.getElementById('prodUrlImagen').value.trim();
   const img = document.getElementById('prodImgPreview');
@@ -1092,6 +1394,42 @@ document.getElementById('productoForm').addEventListener('submit', async (e) => 
   }
 });
 
+async function deleteProduct(id) {
+  const p = state.inventario.find(x => String(x.ID_Producto) === String(id));
+  if (!p) return;
+  if (!confirm(`¿Eliminar "${p.Nombre}" del inventario? Esta acción no se puede deshacer.`)) return;
+  try {
+    await apiPost('eliminarProducto', { ID_Producto: id });
+    toast(`Producto "${p.Nombre}" eliminado.`, 'success');
+    await loadData({ silent: true });
+  } catch (err) {
+    toast(`Error al eliminar: ${err.message}`, 'error');
+  }
+}
+
+// ============================================================
+// Inventario: búsqueda y filtros
+// ============================================================
+document.getElementById('invSearch').addEventListener('input', (e) => {
+  currentSearch = e.target.value;
+  renderInventoryTable();
+});
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentFilter = btn.dataset.filter;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.remove('active', 'border-sky-500/50', 'bg-sky-500/10', 'text-sky-400');
+      b.classList.add('border-base-700', 'bg-base-900', 'text-slate-400');
+    });
+    btn.classList.add('active', 'border-sky-500/50', 'bg-sky-500/10', 'text-sky-400');
+    btn.classList.remove('border-base-700', 'bg-base-900', 'text-slate-400');
+    renderInventoryTable();
+  });
+});
+
+// ============================================================
+// Gasto extra
+// ============================================================
 document.querySelectorAll('.gasto-metodo-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.gasto-metodo-btn').forEach(b => b.classList.remove('ring-2', 'ring-rose-500/50', 'border-rose-500/60'));
@@ -1129,37 +1467,78 @@ document.getElementById('gastoForm').addEventListener('submit', async (e) => {
   }
 });
 
-async function deleteProduct(id) {
-  const p = state.inventario.find(x => String(x.ID_Producto) === String(id));
-  if (!p) return;
-  if (!confirm(`¿Eliminar "${p.Nombre}" del inventario? Esta acción no se puede deshacer.`)) return;
+// ============================================================
+// Clientes: alta y cobro de deuda
+// ============================================================
+document.getElementById('clienteForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    Nombre: document.getElementById('clienteNombre').value.trim(),
+    Telefono: document.getElementById('clienteTelefono').value.trim(),
+  };
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Guardando...';
   try {
-    await apiPost('eliminarProducto', { ID_Producto: id });
-    toast(`Producto "${p.Nombre}" eliminado.`, 'success');
+    await apiPost('crearCliente', payload);
+    toast(`Cliente "${payload.Nombre}" agregado.`, 'success');
+    e.target.reset();
     await loadData({ silent: true });
   } catch (err) {
-    toast(`Error al eliminar: ${err.message}`, 'error');
+    toast(`Error al crear el cliente: ${err.message}`, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Agregar cliente';
   }
+});
+
+function openCobroDialog(clienteId) {
+  const c = state.clientes.find(x => String(x.ID_Cliente) === String(clienteId));
+  if (!c) return;
+  document.getElementById('cobroClienteId').value = c.ID_Cliente;
+  document.getElementById('cobroClienteNombre').textContent = c.Nombre;
+  document.getElementById('cobroSaldoActual').textContent = CURRENCY.format(Number(c.Saldo_Pendiente || 0));
+  document.getElementById('cobroMonto').value = Number(c.Saldo_Pendiente || 0) > 0 ? Number(c.Saldo_Pendiente) : '';
+  document.querySelectorAll('.cobro-metodo-btn').forEach(b => b.classList.remove('ring-2', 'ring-emerald-500/50', 'ring-sky-500/50', 'border-emerald-500/60', 'border-sky-500/60'));
+  document.getElementById('cobroMetodoPago').value = '';
+  document.getElementById('cobroDialog').showModal();
 }
 
-// ============================================================
-// Inventario: búsqueda y filtros
-// ============================================================
-document.getElementById('invSearch').addEventListener('input', (e) => {
-  currentSearch = e.target.value;
-  renderInventoryTable();
-});
-document.querySelectorAll('.filter-btn').forEach(btn => {
+document.getElementById('cobroCancelBtn').addEventListener('click', () => document.getElementById('cobroDialog').close());
+document.getElementById('cobroCancelBtnX').addEventListener('click', () => document.getElementById('cobroDialog').close());
+
+document.querySelectorAll('.cobro-metodo-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    currentFilter = btn.dataset.filter;
-    document.querySelectorAll('.filter-btn').forEach(b => {
-      b.classList.remove('active', 'border-sky-500/50', 'bg-sky-500/10', 'text-sky-400');
-      b.classList.add('border-base-700', 'bg-base-900', 'text-slate-400');
-    });
-    btn.classList.add('active', 'border-sky-500/50', 'bg-sky-500/10', 'text-sky-400');
-    btn.classList.remove('border-base-700', 'bg-base-900', 'text-slate-400');
-    renderInventoryTable();
+    document.querySelectorAll('.cobro-metodo-btn').forEach(b => b.classList.remove('ring-2', 'ring-emerald-500/50', 'ring-sky-500/50', 'border-emerald-500/60', 'border-sky-500/60'));
+    const ring = btn.dataset.metodo === 'Efectivo' ? ['ring-emerald-500/50', 'border-emerald-500/60'] : ['ring-sky-500/50', 'border-sky-500/60'];
+    btn.classList.add('ring-2', ...ring);
+    document.getElementById('cobroMetodoPago').value = btn.dataset.metodo;
   });
+});
+
+document.getElementById('cobroSubmitBtn').addEventListener('click', async () => {
+  const payload = {
+    ID_Cliente: document.getElementById('cobroClienteId').value,
+    Monto: Number(document.getElementById('cobroMonto').value),
+    Metodo_Pago: document.getElementById('cobroMetodoPago').value,
+  };
+  if (!payload.Monto || payload.Monto <= 0) return toast('Ingresá un monto válido.', 'error');
+  if (!payload.Metodo_Pago) return toast('Elegí a qué caja ingresa el pago.', 'error');
+
+  const btn = document.getElementById('cobroSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  try {
+    await apiPost('registrarCobroDeuda', payload);
+    toast('Cobro registrado correctamente.', 'success');
+    document.getElementById('cobroDialog').close();
+    await loadData({ silent: true });
+  } catch (err) {
+    toast(`Error al registrar el cobro: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Registrar cobro';
+  }
 });
 
 // ============================================================
@@ -1188,10 +1567,8 @@ function analyzeBusiness() {
   setTimeout(() => {
     const insights = [];
 
-    // 1) Producto con mayor margen
     const conMargen = state.inventario.map(p => ({
       ...p,
-      margen: Number(p.Precio_Venta || 0) - Number(p.Costo_Unitario || 0),
       margenPct: Number(p.Costo_Unitario) > 0 ? ((Number(p.Precio_Venta) - Number(p.Costo_Unitario)) / Number(p.Costo_Unitario)) * 100 : 0,
     })).sort((a, b) => b.margenPct - a.margenPct);
     if (conMargen.length) {
@@ -1199,7 +1576,6 @@ function analyzeBusiness() {
       insights.push(`Tu producto con mayor margen es <strong class="text-emerald-400">${top.Nombre}</strong>, con ${top.margenPct.toFixed(0)}% de rentabilidad sobre el costo. Vale la pena promocionarlo más.`);
     }
 
-    // 2) Producto crítico que representa buena parte de los ingresos
     const ventasPorProducto = {};
     let ventasTotales = 0;
     state.movimientos.forEach(mv => {
@@ -1222,7 +1598,6 @@ function analyzeBusiness() {
       insights.push(`Tenés <strong class="text-rose-400">${bajoStock.length}</strong> producto(s) por debajo del stock mínimo.`);
     }
 
-    // 3) Rendimiento semanal (semana actual vs anterior)
     const sorted = [...state.resumenSemanal].sort((a, b) => new Date(a.Semana) - new Date(b.Semana));
     if (sorted.length >= 2) {
       const actual = sorted[sorted.length - 1];
@@ -1239,7 +1614,6 @@ function analyzeBusiness() {
       insights.push(`Todavía no hay suficiente historial semanal para comparar tendencias. Seguí registrando movimientos para desbloquear este análisis.`);
     }
 
-    // 4) Producto más vendido
     const unidadesPorProducto = {};
     state.movimientos.forEach(mv => {
       if (mv.Tipo === 'Venta') unidadesPorProducto[mv.Nombre] = (unidadesPorProducto[mv.Nombre] || 0) + Number(mv.Cantidad || 0);
@@ -1247,6 +1621,11 @@ function analyzeBusiness() {
     const masVendido = Object.entries(unidadesPorProducto).sort((a, b) => b[1] - a[1])[0];
     if (masVendido) {
       insights.push(`Tu producto más vendido es <strong class="text-sky-400">${masVendido[0]}</strong> con ${masVendido[1]} unidades. Asegurate de mantener buen stock disponible.`);
+    }
+
+    if (state.cuentasPorCobrar > 0) {
+      const clientesConDeuda = state.clientes.filter(c => Number(c.Saldo_Pendiente || 0) > 0);
+      insights.push(`Tenés <strong class="text-amber-400">${CURRENCY.format(state.cuentasPorCobrar)}</strong> pendientes de cobro entre ${clientesConDeuda.length} cliente(s). Priorizá el seguimiento de los saldos más altos.`);
     }
 
     feed.innerHTML = '';
