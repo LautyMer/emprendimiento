@@ -125,7 +125,7 @@
       </button>
     </nav>
     <div class="mt-auto px-2">
-      <button id="refreshBtn" class="w-full flex items-center justify-center gap-2 text-xs font-medium text-slate-400 hover:text-sky-400 border border-base-700 hover:border-sky-500/40 rounded-lg py-2 transition">
+      <button id="refreshBtn" class="w-full flex items-center justify-center gap-2 text-xs font-medium text-slate-400 hover:text-sky-400 border border-base-700/60 hover:border-sky-500/40 rounded-lg py-2 transition">
         <svg id="refreshIcon" xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 22v-6h6M3.5 9a9 9 0 0 1 15-4L21 8M20.5 15a9 9 0 0 1-15 4L3 16"/></svg>
         Sincronizar
       </button>
@@ -364,7 +364,7 @@
               </div>
               <div class="flex gap-2">
                 <button type="submit" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-base-950 font-semibold text-sm py-3 rounded-lg transition">Guardar producto</button>
-                <button type="button" id="cancelEditBtn" class="hidden px-4 text-sm font-medium text-slate-400 hover:text-slate-200 border border-base-700 rounded-lg transition">Cancelar</button>
+                <button type="button" id="cancelEditBtn" class="hidden px-4 text-sm font-medium text-slate-400 hover:text-slate-200 border border-base-700/60 rounded-lg transition">Cancelar</button>
               </div>
             </form>
           </div>
@@ -451,6 +451,12 @@
                 <label class="text-xs text-slate-500 font-medium">Teléfono</label>
                 <input type="tel" id="clienteTelefono" placeholder="Opcional" class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/40">
               </div>
+              <div>
+                <label class="text-xs text-slate-500 font-medium">Saldo inicial (si ya te debía de antes)</label>
+                <input type="number" id="clienteSaldoInicial" min="0" step="0.01" placeholder="0.00" value="0"
+                  class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-sky-500/40">
+                <p class="text-[11px] text-slate-600 mt-1">Dejalo en 0 si el cliente arranca sin deuda.</p>
+              </div>
               <button type="submit" class="w-full bg-sky-500 hover:bg-sky-400 text-base-950 font-semibold text-sm py-3 rounded-lg transition">Agregar cliente</button>
             </form>
           </div>
@@ -492,16 +498,24 @@
               Analizar mi negocio con IA
             </button>
           </div>
-          <div id="aiFeed" class="space-y-3 min-h-[8rem]">
+          <div id="aiFeed" class="space-y-3 max-h-[26rem] overflow-y-auto pr-1 mb-4">
             <div class="flex items-start gap-3">
               <div class="w-7 h-7 rounded-full bg-base-800 border border-base-700 flex items-center justify-center shrink-0 mt-0.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
               </div>
               <p class="text-sm text-slate-400 bg-base-800/60 border border-base-700/60 rounded-xl rounded-tl-sm px-4 py-3 leading-relaxed">
-                Presioná <span class="text-slate-200 font-medium">"Analizar mi negocio con IA"</span> y voy a leer tu inventario, tus ventas y tus cuentas por cobrar para darte sugerencias accionables.
+                Presioná <span class="text-slate-200 font-medium">"Analizar mi negocio con IA"</span> para un reporte completo, o preguntame algo abajo — por ejemplo <span class="text-slate-200">"¿cuánto vendí esta semana?"</span> o <span class="text-slate-200">"¿qué me falta reponer?"</span>.
               </p>
             </div>
           </div>
+          <form id="aiChatForm" class="flex gap-2">
+            <input type="text" id="aiChatInput" autocomplete="off" placeholder="Preguntame algo sobre tu negocio..."
+              class="flex-1 bg-base-800 border border-base-700 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/40">
+            <button type="submit" class="bg-sky-500 hover:bg-sky-400 text-base-950 font-semibold text-sm px-4 rounded-lg transition shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            </button>
+          </form>
+          <p class="text-[11px] text-slate-600 mt-2">Ejemplos: "cuánto tengo en efectivo", "precio del [producto]", "cuánto me debe [cliente]", "producto más vendido".</p>
         </div>
       </section>
     </main>
@@ -559,8 +573,40 @@
         <input type="hidden" id="cobroMetodoPago">
       </div>
       <div class="flex gap-2 pt-1">
-        <button type="button" id="cobroCancelBtn" class="flex-1 text-sm font-medium text-slate-400 hover:text-slate-200 border border-base-700 rounded-lg py-2.5 transition">Cancelar</button>
+        <button type="button" id="cobroCancelBtn" class="flex-1 text-sm font-medium text-slate-400 hover:text-slate-200 border border-base-700/60 rounded-lg py-2.5 transition">Cancelar</button>
         <button type="button" id="cobroSubmitBtn" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-base-950 font-semibold text-sm py-2.5 rounded-lg transition">Registrar cobro</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- Dialog: Cargar deuda manual (sin pasar por una venta) -->
+<dialog id="deudaDialog" class="w-full max-w-sm m-auto rounded-2xl">
+  <div class="bg-base-900 border border-base-700 rounded-2xl p-5">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="text-sm font-semibold text-white">Cargar deuda</h3>
+      <button type="button" id="deudaCancelBtnX" class="text-slate-500 hover:text-slate-200">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p class="text-sm text-slate-300 font-medium mb-0.5" id="deudaClienteNombre">—</p>
+    <p class="text-xs text-slate-500 mb-4">Saldo pendiente actual: <span class="font-mono-data text-rose-400" id="deudaSaldoActual">$0</span></p>
+    <input type="hidden" id="deudaClienteId">
+    <div class="space-y-3.5">
+      <div>
+        <label class="text-xs text-slate-500 font-medium">Monto a agregar a la deuda</label>
+        <input type="number" id="deudaMonto" min="0.01" step="0.01" placeholder="0.00"
+          class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm font-mono-data focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+      </div>
+      <div>
+        <label class="text-xs text-slate-500 font-medium">Concepto (opcional)</label>
+        <input type="text" id="deudaConcepto" placeholder="Ej: Fiado, deuda anterior..."
+          class="mt-1 w-full bg-base-800 border border-base-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+      </div>
+      <p class="text-[11px] text-slate-600">Esto no mueve stock ni caja: solo suma el monto al saldo que te debe el cliente.</p>
+      <div class="flex gap-2 pt-1">
+        <button type="button" id="deudaCancelBtn" class="flex-1 text-sm font-medium text-slate-400 hover:text-slate-200 border border-base-700/60 rounded-lg py-2.5 transition">Cancelar</button>
+        <button type="button" id="deudaSubmitBtn" class="flex-1 bg-amber-500/90 hover:bg-amber-500 text-base-950 font-semibold text-sm py-2.5 rounded-lg transition">Cargar deuda</button>
       </div>
     </div>
   </div>
@@ -595,7 +641,7 @@
  * ============================================================ */
 
 // ---- Configuración ----
-const API_URL = "https://script.google.com/macros/s/AKfycby4ZxT08aR4cXWR7Xstu44AforpkJEejn4awXa5CDeBSaN9DxLMGSd_fit_8mYHV4ld/exec"; // Reemplazar por la URL /exec del deployment
+const API_URL = "https://script.google.com/macros/s/AKfycbzSCfCVBH8RoBjgmdyI1f6F4o5iGIdCZvcnLTdD9E_l3tsOnwJEMzgKyAkDPiCILLoA/exec"; // Reemplazar por la URL /exec del deployment
 const CACHE_KEY = "stockos_cache_v1";
 const CURRENCY = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const CURRENCY_DEC = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 });
@@ -947,7 +993,7 @@ function renderMovProductoDropdown(query) {
       const bajo = Number(p.Stock_Actual) <= Number(p.Stock_Minimo);
       return `
         <button type="button" data-select-producto="${p.ID_Producto}"
-          class="w-full flex items-center gap-3 px-3 py-2 hover:bg-base-700/60 transition text-left">
+          class="w-full flex items-center gap-3 px-3 py-2 hover:bg-base-800 transition text-left">
           ${thumbHtml(p.URL_Imagen, 'w-8 h-8')}
           <span class="flex-1 min-w-0">
             <span class="block text-sm text-slate-200 truncate">${p.Nombre}</span>
@@ -1072,7 +1118,10 @@ function renderClientesTable() {
       </td>
       <td class="px-4 py-3 text-slate-400 hidden sm:table-cell">${c.Telefono || '—'}</td>
       <td class="px-4 py-3 font-mono-data font-semibold ${debe ? 'text-rose-400' : 'text-emerald-400'}">${CURRENCY.format(saldo)}</td>
-      <td class="px-4 py-3 text-right">
+      <td class="px-4 py-3 text-right space-x-1.5">
+        <button data-deuda-id="${c.ID_Cliente}" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition whitespace-nowrap">
+          Cargar deuda
+        </button>
         <button data-cobrar-id="${c.ID_Cliente}" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 transition whitespace-nowrap">
           Cobrar / Entrega
         </button>
@@ -1082,6 +1131,8 @@ function renderClientesTable() {
 
   tbody.querySelectorAll('[data-cobrar-id]').forEach(btn =>
     btn.addEventListener('click', () => openCobroDialog(btn.dataset.cobrarId)));
+  tbody.querySelectorAll('[data-deuda-id]').forEach(btn =>
+    btn.addEventListener('click', () => openDeudaDialog(btn.dataset.deudaId)));
 }
 
 function refreshClienteSelect() {
@@ -1475,13 +1526,16 @@ document.getElementById('clienteForm').addEventListener('submit', async (e) => {
   const payload = {
     Nombre: document.getElementById('clienteNombre').value.trim(),
     Telefono: document.getElementById('clienteTelefono').value.trim(),
+    Saldo_Pendiente: Number(document.getElementById('clienteSaldoInicial').value || 0),
   };
   const submitBtn = e.target.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
   submitBtn.textContent = 'Guardando...';
   try {
     await apiPost('crearCliente', payload);
-    toast(`Cliente "${payload.Nombre}" agregado.`, 'success');
+    toast(payload.Saldo_Pendiente > 0
+      ? `Cliente "${payload.Nombre}" agregado con un saldo inicial de ${CURRENCY_DEC.format(payload.Saldo_Pendiente)}.`
+      : `Cliente "${payload.Nombre}" agregado.`, 'success');
     e.target.reset();
     await loadData({ silent: true });
   } catch (err) {
@@ -1541,6 +1595,45 @@ document.getElementById('cobroSubmitBtn').addEventListener('click', async () => 
   }
 });
 
+// ---- Cargar deuda manual (sin pasar por una venta) ----
+function openDeudaDialog(clienteId) {
+  const c = state.clientes.find(x => String(x.ID_Cliente) === String(clienteId));
+  if (!c) return;
+  document.getElementById('deudaClienteId').value = c.ID_Cliente;
+  document.getElementById('deudaClienteNombre').textContent = c.Nombre;
+  document.getElementById('deudaSaldoActual').textContent = CURRENCY.format(Number(c.Saldo_Pendiente || 0));
+  document.getElementById('deudaMonto').value = '';
+  document.getElementById('deudaConcepto').value = '';
+  document.getElementById('deudaDialog').showModal();
+}
+
+document.getElementById('deudaCancelBtn').addEventListener('click', () => document.getElementById('deudaDialog').close());
+document.getElementById('deudaCancelBtnX').addEventListener('click', () => document.getElementById('deudaDialog').close());
+
+document.getElementById('deudaSubmitBtn').addEventListener('click', async () => {
+  const payload = {
+    ID_Cliente: document.getElementById('deudaClienteId').value,
+    Monto: Number(document.getElementById('deudaMonto').value),
+    Concepto: document.getElementById('deudaConcepto').value.trim(),
+  };
+  if (!payload.Monto || payload.Monto <= 0) return toast('Ingresá un monto válido.', 'error');
+
+  const btn = document.getElementById('deudaSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  try {
+    await apiPost('registrarDeudaManual', payload);
+    toast('Deuda cargada correctamente.', 'success');
+    document.getElementById('deudaDialog').close();
+    await loadData({ silent: true });
+  } catch (err) {
+    toast(`Error al cargar la deuda: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Cargar deuda';
+  }
+});
+
 // ============================================================
 // Asistente IA — análisis heurístico local sobre los datos reales
 // ============================================================
@@ -1552,6 +1645,18 @@ function bubbleHtml(text) {
       </div>
       <p class="text-sm text-slate-200 bg-base-800/60 border border-base-700/60 rounded-xl rounded-tl-sm px-4 py-3 leading-relaxed">${text}</p>
     </div>`;
+}
+
+function userBubbleHtml(text) {
+  return `
+    <div class="flex items-start gap-3 justify-end">
+      <p class="text-sm text-slate-100 bg-sky-500/20 border border-sky-500/30 rounded-xl rounded-tr-sm px-4 py-3 leading-relaxed max-w-[85%]">${text}</p>
+    </div>`;
+}
+
+function scrollFeedToBottom() {
+  const feed = document.getElementById('aiFeed');
+  feed.scrollTop = feed.scrollHeight;
 }
 
 function analyzeBusiness() {
@@ -1628,16 +1733,146 @@ function analyzeBusiness() {
       insights.push(`Tenés <strong class="text-amber-400">${CURRENCY.format(state.cuentasPorCobrar)}</strong> pendientes de cobro entre ${clientesConDeuda.length} cliente(s). Priorizá el seguimiento de los saldos más altos.`);
     }
 
-    feed.innerHTML = '';
+    feed.insertAdjacentHTML('beforeend', userBubbleHtml('📊 Analizar mi negocio con IA'));
     insights.forEach((text, i) => {
-      setTimeout(() => feed.insertAdjacentHTML('beforeend', bubbleHtml(text)), i * 350);
+      setTimeout(() => {
+        feed.insertAdjacentHTML('beforeend', bubbleHtml(text));
+        scrollFeedToBottom();
+      }, i * 350);
     });
+    scrollFeedToBottom();
 
     btn.disabled = false;
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m12 3-1.9 4.9L5 9.8l4.1 3.2L7.8 18 12 15.2l4.2 2.8-1.3-4.9L19 9.8l-5.1-1.9L12 3Z"/></svg> Analizar mi negocio con IA`;
   }, 900);
 }
 document.getElementById('analyzeBtn').addEventListener('click', analyzeBusiness);
+
+// ============================================================
+// Chat local: responde preguntas en lenguaje natural usando los
+// datos reales de la app. No usa ninguna API externa ni clave
+// de IA — todo se resuelve en el navegador con los datos ya
+// cargados en `state`.
+// ============================================================
+function normalizarTexto(s) {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+function buscarProductoEnTexto(textoNorm) {
+  return state.inventario.find(p => textoNorm.includes(normalizarTexto(p.Nombre))) || null;
+}
+
+function buscarClienteEnTexto(textoNorm) {
+  return state.clientes.find(c => textoNorm.includes(normalizarTexto(c.Nombre))) || null;
+}
+
+function responderPreguntaLocal(preguntaOriginal) {
+  const q = normalizarTexto(preguntaOriginal);
+  const semanal = computeWeeklyKpis();
+
+  if (/^(hola|buenas|hey|holis)/.test(q)) {
+    return '¡Hola! Preguntame sobre ventas, ganancias, stock, precios, caja o clientes — por ejemplo "cuánto vendí esta semana" o "qué me falta reponer".';
+  }
+
+  if (/que podes hacer|ayuda|help|opciones/.test(q)) {
+    return 'Puedo responder sobre: ventas y ganancia de la semana, stock bajo o de un producto puntual, precio de un producto, caja en efectivo/transferencia, cuánto te debe un cliente o el total de cuentas por cobrar, y el producto más vendido.';
+  }
+
+  // Cliente: deuda puntual
+  if (/debe|deuda|saldo/.test(q)) {
+    const cliente = buscarClienteEnTexto(q);
+    if (cliente) {
+      const saldo = Number(cliente.Saldo_Pendiente || 0);
+      return saldo > 0
+        ? `${cliente.Nombre} te debe <strong class="text-rose-400">${CURRENCY.format(saldo)}</strong>.`
+        : `${cliente.Nombre} no tiene saldo pendiente, está al día. 🎉`;
+    }
+    if (/total|todos|cuentas por cobrar/.test(q)) {
+      const conDeuda = state.clientes.filter(c => Number(c.Saldo_Pendiente || 0) > 0);
+      return state.cuentasPorCobrar > 0
+        ? `Tenés <strong class="text-amber-400">${CURRENCY.format(state.cuentasPorCobrar)}</strong> pendientes de cobro entre ${conDeuda.length} cliente(s).`
+        : 'No tenés cuentas por cobrar pendientes en este momento.';
+    }
+  }
+
+  // Caja
+  if (/efectivo/.test(q) && /(cuanto|caja|tengo)/.test(q)) {
+    return `Tenés <strong class="text-emerald-400">${CURRENCY.format(state.caja.efectivo || 0)}</strong> en Caja Efectivo.`;
+  }
+  if (/transferencia/.test(q) && /(cuanto|caja|tengo)/.test(q)) {
+    return `Tenés <strong class="text-sky-400">${CURRENCY.format(state.caja.transferencia || 0)}</strong> en Caja Transferencias.`;
+  }
+
+  // Stock bajo / a reponer
+  if (/reponer|falta|stock bajo|agotar/.test(q)) {
+    const bajoStock = state.inventario.filter(p => Number(p.Stock_Actual) <= Number(p.Stock_Minimo));
+    if (bajoStock.length === 0) return 'Todo tu inventario está por encima del stock mínimo. ¡Sin alertas por ahora! ✅';
+    const lista = bajoStock.slice(0, 6).map(p => `${p.Nombre} (quedan ${p.Stock_Actual})`).join(', ');
+    return `Tenés <strong class="text-rose-400">${bajoStock.length}</strong> producto(s) para reponer: ${lista}${bajoStock.length > 6 ? '…' : ''}.`;
+  }
+
+  // Stock / precio de un producto puntual
+  if (/(stock|unidades|quedan|precio|cuesta|vale)/.test(q)) {
+    const producto = buscarProductoEnTexto(q);
+    if (producto) {
+      if (/precio|cuesta|vale/.test(q)) {
+        return `${producto.Nombre} se vende a <strong class="text-sky-400">${CURRENCY_DEC.format(producto.Precio_Venta)}</strong> (costo: ${CURRENCY_DEC.format(producto.Costo_Unitario)}).`;
+      }
+      return `De ${producto.Nombre} te quedan <strong class="text-sky-400">${producto.Stock_Actual}</strong> unidades (mínimo configurado: ${producto.Stock_Minimo}).`;
+    }
+  }
+
+  // Ventas / ganancia / gastos de la semana
+  if (/vend|ventas/.test(q)) {
+    return `Esta semana vendiste <strong class="text-sky-400">${CURRENCY.format(semanal.ventas)}</strong>, en ${semanal.unidades} unidad(es).`;
+  }
+  if (/ganancia/.test(q)) {
+    return `Tu ganancia neta de esta semana es <strong class="text-emerald-400">${CURRENCY.format(semanal.gananciaNeta)}</strong> (bruta: ${CURRENCY.format(semanal.gananciaBruta)}, gastos: ${CURRENCY.format(semanal.gastosExtras)}).`;
+  }
+  if (/gasto/.test(q)) {
+    return `Llevás gastados <strong class="text-rose-400">${CURRENCY.format(semanal.gastosExtras)}</strong> en gastos extra esta semana.`;
+  }
+
+  // Producto más vendido
+  if (/mas vendido|top producto|mejor producto/.test(q)) {
+    const unidadesPorProducto = {};
+    state.movimientos.forEach(mv => {
+      if (mv.Tipo === 'Venta') unidadesPorProducto[mv.Nombre] = (unidadesPorProducto[mv.Nombre] || 0) + Number(mv.Cantidad || 0);
+    });
+    const top = Object.entries(unidadesPorProducto).sort((a, b) => b[1] - a[1])[0];
+    return top
+      ? `Tu producto más vendido es <strong class="text-sky-400">${top[0]}</strong>, con ${top[1]} unidades vendidas en total.`
+      : 'Todavía no registraste ninguna venta.';
+  }
+
+  // Conteos generales
+  if (/cuantos productos|cuanto inventario/.test(q)) {
+    return `Tenés <strong class="text-sky-400">${state.inventario.length}</strong> producto(s) cargados en el inventario.`;
+  }
+  if (/cuantos clientes/.test(q)) {
+    return `Tenés <strong class="text-sky-400">${state.clientes.length}</strong> cliente(s) en tu cartera.`;
+  }
+
+  return 'No estoy seguro de haber entendido bien esa pregunta. Probá con algo como "cuánto vendí esta semana", "qué me falta reponer", "precio del [producto]" o "cuánto me debe [cliente]" — o tocá "Analizar mi negocio con IA" para un reporte completo.';
+}
+
+document.getElementById('aiChatForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = document.getElementById('aiChatInput');
+  const pregunta = input.value.trim();
+  if (!pregunta) return;
+
+  const feed = document.getElementById('aiFeed');
+  feed.insertAdjacentHTML('beforeend', userBubbleHtml(pregunta));
+  input.value = '';
+  scrollFeedToBottom();
+
+  setTimeout(() => {
+    const respuesta = responderPreguntaLocal(pregunta);
+    feed.insertAdjacentHTML('beforeend', bubbleHtml(respuesta));
+    scrollFeedToBottom();
+  }, 400);
+});
 
 // ============================================================
 // Sincronización manual
@@ -1654,5 +1889,7 @@ document.getElementById('refreshBtn').addEventListener('click', () => loadData()
 })();
 </script>
 </body>
+</html>
+
 </html>
 
