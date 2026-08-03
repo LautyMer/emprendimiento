@@ -4,14 +4,6 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
 <title>StockOS — Gestión Comercial</title>
-  <!-- Configuración PWA y Service Worker -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0b132b">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-  }
-</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
@@ -80,6 +72,9 @@
 
   .nav-item.active { color:#38bdf8; background:rgba(56,189,248,0.08); }
   .nav-item.active .nav-dot { opacity:1; }
+
+  .chart-modo-btn { color:#64748b; }
+  .chart-modo-btn.active { color:#0b0f17; background:#38bdf8; }
 
   dialog::backdrop { background: rgba(2,6,15,0.72); backdrop-filter: blur(2px); }
   dialog { border:none; padding:0; background:transparent; }
@@ -214,9 +209,12 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
           <div class="lg:col-span-3 bg-base-900 border border-base-700/60 rounded-2xl p-4 md:p-5">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-sm font-semibold text-slate-200">Ventas vs. Costos por semana</h3>
-              <span class="text-[10px] text-slate-500 font-mono-data">últimas 6 semanas</span>
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h3 class="text-sm font-semibold text-slate-200" id="chartVentasCostosTitle">Ventas vs. Costos por semana</h3>
+              <div class="flex gap-1.5 bg-base-800/60 border border-base-700/60 rounded-lg p-0.5">
+                <button type="button" data-modo="semanal" class="chart-modo-btn active text-[11px] font-semibold px-2.5 py-1 rounded-md transition">Semanal</button>
+                <button type="button" data-modo="diario" class="chart-modo-btn text-[11px] font-semibold px-2.5 py-1 rounded-md transition">Diario</button>
+              </div>
             </div>
             <div class="h-64"><canvas id="chartVentasCostos"></canvas></div>
           </div>
@@ -649,7 +647,7 @@
  * ============================================================ */
 
 // ---- Configuración ----
-const API_URL = "https://script.google.com/macros/s/AKfycbzSCfCVBH8RoBjgmdyI1f6F4o5iGIdCZvcnLTdD9E_l3tsOnwJEMzgKyAkDPiCILLoA/exec"; // Reemplazar por la URL /exec del deployment
+const API_URL = "https://script.google.com/macros/s/AKfycbxX_oBBtddSQtPtOWvymOAqEkmNeiUGBpKYRABLZDbaDE_iTPZnYL5Kju3v27EqrIM5/exec"; // Reemplazar por la URL /exec del deployment
 const CACHE_KEY = "stockos_cache_v1";
 const CURRENCY = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const CURRENCY_DEC = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 });
@@ -904,6 +902,8 @@ function renderKpis() {
 }
 
 // ---- Gráficos ----
+let chartModo = 'semanal';
+
 function renderCharts() {
   renderChartVentasCostos();
   renderChartTopProductos();
@@ -914,12 +914,78 @@ function getLastNWeeksLabelsFromResumen(n = 6) {
   return sorted.slice(-n);
 }
 
+// Mapea cada fecha de "Semana" (lunes, guardada por el backend) a un número
+// secuencial "Semana 1", "Semana 2"... contando desde la primera semana que
+// tiene registros, para no mostrarle al usuario una fecha cruda.
+function getWeekLabelMap() {
+  const sorted = [...state.resumenSemanal].sort((a, b) => new Date(a.Semana) - new Date(b.Semana));
+  const map = {};
+  sorted.forEach((r, i) => { map[r.Semana] = `Semana ${i + 1}`; });
+  return map;
+}
+
+function formatFechaCorta(fechaStr) {
+  const d = new Date(fechaStr);
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function localDateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// Arma los últimos N días (con o sin ventas) a partir de los Movimientos reales,
+// que ya tienen fecha y hora exacta. No hace falta ningún cambio en Code.gs.
+function computeDailyVentasCostos(n = 14) {
+  const costoPorId = {};
+  state.inventario.forEach(p => (costoPorId[p.ID_Producto] = Number(p.Costo_Unitario || 0)));
+
+  const hoy = new Date();
+  const dias = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(hoy);
+    d.setDate(hoy.getDate() - i);
+    dias.push({ key: localDateKey(d), date: d, ventas: 0, costos: 0 });
+  }
+  const porKey = {};
+  dias.forEach(d => (porKey[d.key] = d));
+
+  state.movimientos.forEach(mv => {
+    if (mv.Tipo !== 'Venta') return;
+    const dia = porKey[localDateKey(new Date(mv.Fecha))];
+    if (!dia) return; // fuera de la ventana de días mostrada
+    const cantidad = Number(mv.Cantidad || 0);
+    dia.ventas += Number(mv.Total || 0);
+    dia.costos += cantidad * (costoPorId[mv.ID_Producto] || 0);
+  });
+
+  return dias;
+}
+
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
 function renderChartVentasCostos() {
   const ctx = document.getElementById('chartVentasCostos');
-  const rows = getLastNWeeksLabelsFromResumen(6);
-  const labels = rows.map(r => r.Semana);
-  const ventas = rows.map(r => Number(r.Ventas_Totales || 0));
-  const costos = rows.map(r => Number(r.Costos_Totales || 0));
+  let labels, ventas, costos, tooltipTitles;
+
+  if (chartModo === 'diario') {
+    const dias = computeDailyVentasCostos(14);
+    labels = dias.map(d => `${d.date.getDate()} ${MESES_CORTOS[d.date.getMonth()]}`);
+    ventas = dias.map(d => d.ventas);
+    costos = dias.map(d => d.costos);
+    tooltipTitles = labels;
+    document.getElementById('chartVentasCostosTitle').textContent = 'Ventas vs. Costos por día';
+  } else {
+    const weekMap = getWeekLabelMap();
+    const rows = getLastNWeeksLabelsFromResumen(6);
+    labels = rows.map(r => weekMap[r.Semana] || r.Semana);
+    ventas = rows.map(r => Number(r.Ventas_Totales || 0));
+    costos = rows.map(r => Number(r.Costos_Totales || 0));
+    tooltipTitles = rows.map(r => `${weekMap[r.Semana] || ''} (desde el ${formatFechaCorta(r.Semana)})`);
+    document.getElementById('chartVentasCostosTitle').textContent = 'Ventas vs. Costos por semana';
+  }
 
   if (chartVentasCostos) chartVentasCostos.destroy();
   chartVentasCostos = new Chart(ctx, {
@@ -935,7 +1001,12 @@ function renderChartVentasCostos() {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { labels: { color: '#94a3b8', boxWidth: 10, font: { size: 11 } } },
-        tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${CURRENCY.format(c.parsed.y)}` } },
+        tooltip: {
+          callbacks: {
+            title: (items) => (tooltipTitles && tooltipTitles[items[0].dataIndex]) || '',
+            label: (c) => `${c.dataset.label}: ${CURRENCY.format(c.parsed.y)}`,
+          },
+        },
       },
       scales: {
         x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { display: false } },
@@ -944,6 +1015,15 @@ function renderChartVentasCostos() {
     },
   });
 }
+
+document.querySelectorAll('.chart-modo-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    chartModo = btn.dataset.modo;
+    document.querySelectorAll('.chart-modo-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderChartVentasCostos();
+  });
+});
+
 
 function renderChartTopProductos() {
   const ctx = document.getElementById('chartTopProductos');
@@ -1898,6 +1978,3 @@ document.getElementById('refreshBtn').addEventListener('click', () => loadData()
 </script>
 </body>
 </html>
-
-</html>
-
